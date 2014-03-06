@@ -5,12 +5,14 @@
 ## with Octave's package manager. This is useful for for the distribution's
 ## various package managers and is forced by defining DESTDIR and DISTPKG.
 
-PKGDIR := $(shell pwd | sed -e 's|^.*/||')
+PKGVER := $(shell grep Version DESCRIPTION | grep -o [0-9.]*)
+PKGDIR := video-$(PKGVER)
 TMPDIR ?= /tmp
 PACKAGE ?= $(TMPDIR)/$(PKGDIR).tar.gz
 PKG := $(shell echo $(PKGDIR) | sed -e 's|^\(.*\)-.*|\1|')
 
 all: build package
+#all: build
 
 build:
 	@if [ -e src/Makefile ]; then \
@@ -18,13 +20,15 @@ build:
 	fi
 
 package: build
-	@if [ -e src/Makefile ]; then \
-	  mv src/Makefile src/Makefile.disable; \
+	@if [ -e "$(PKGDIR)" ]; then \
+		rm -r "$(PKGDIR)"; \
 	fi; \
-	if [ -e src/configure ]; then \
-	  mv src/configure src/configure.disable; \
-	fi; \
-	cd ..; tar -czf $(PACKAGE) $(PKGDIR); \
+	mkdir -p "$(PKGDIR)"; \
+	mkdir -p "$(PKGDIR)/src"; \
+	cp ChangeLog COPYING DESCRIPTION INDEX README.md "$(PKGDIR)"/; \
+	cp -r doc "$(PKGDIR)"/; \
+	cp src/*.oct "$(PKGDIR)"/src/; \
+	tar -czf $(PACKAGE) $(PKGDIR);
 
 install:
 	@cd ../; \
@@ -72,4 +76,5 @@ install:
 
 clean:
 	rm $(PACKAGE)
+	rm -r $(PKGDIR)
 	$(MAKE) -C src clean

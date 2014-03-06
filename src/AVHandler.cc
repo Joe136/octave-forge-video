@@ -27,6 +27,11 @@
 #include <string>
 #include <cassert>
 #include <cstdlib>
+#include <memory>
+#include <ext/stdio_filebuf.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 extern "C" {
 #if defined (HAVE_FFMPEG_AVFORMAT_H)
@@ -331,6 +336,12 @@ AVHandler::read_frame(unsigned int nr) {
     uint64_t current_timestamp = 0;
     AVPacket packet;
 
+
+    // Redirect stderr to /dev/null
+    std::shared_ptr<__gnu_cxx::stdio_filebuf<char> > fb_err = std::make_shared<__gnu_cxx::stdio_filebuf<char> > (open("/dev/null", O_RDWR), std::ios_base::out);
+    dup2(fb_err->fd(), STDERR_FILENO);
+
+
     while (current_timestamp <= target_timestamp) {
 
         // Read until we find a packet from the video stream
@@ -351,20 +362,22 @@ AVHandler::read_frame(unsigned int nr) {
         // Decode the packet into a frame
         int frameFinished;
 
-    // HACK for CorePNG to decode as normal PNG by default
-    packet.flags = AV_PKT_FLAG_KEY;
-        
+        // HACK for CorePNG to decode as normal PNG by default
+        packet.flags = AV_PKT_FLAG_KEY;
+
         if (avcodec_decode_video2(cc, frame, &frameFinished, &packet) < 0) {
             (*out) << "AVHandler: Error decoding video stream" << std::endl;
             av_free_packet(&packet);
             av_free(frame); frame = NULL;
             return -1;
         }
-
         if (frameFinished) {
             current_timestamp = (uint64_t)(vstream->cur_dts * AV_TIME_BASE * (long double)stream_time_base);
         }
     }
+
+    dup2(STDERR_FILENO, fb_err->fd() );
+
     cc->skip_frame = AVDISCARD_NONE;
 
     SwsContext *sc = sws_getContext(cc->width, cc->height, cc->pix_fmt, 

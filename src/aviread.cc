@@ -27,7 +27,7 @@
 
 DEFUN_DLD(aviread, args, ,
 "-*- texinfo -*-\n\
-@deftypefn {Loadable Function} {@var{image} =} aviread (@var{filename}, @var{N})\n\
+@deftypefn {Loadable Function} {@var{image} =} aviread (@var{filename} [, @var{N}])\n\
 Load frame @var{N} from the AVI file @var{filename}.\n\
 @end deftypefn\n\
 \n\
@@ -35,20 +35,25 @@ Load frame @var{N} from the AVI file @var{filename}.\n\
 {
     octave_value_list retval;
 
+    //if (args.length() == 0 || args.length () > 2) {
     if (args.length() != 2) {
         print_usage();
         return retval;
     }
-   
+
     std::string filename = args(0).string_value();
     if (error_state) {
         print_usage();
         return retval;
     }
 
-    unsigned int framenr = (unsigned int)args(1).scalar_value();
-    if (error_state) {
-        print_usage();
+    unsigned int framenr = 1;
+
+    if (args.length() == 2) {
+        framenr = (unsigned int)args(1).scalar_value();
+        if (error_state) {
+            print_usage();
+        }
     }
 
     AVHandler av = AVHandler();
@@ -60,24 +65,56 @@ Load frame @var{N} from the AVI file @var{filename}.\n\
         return retval;
     }
 
-    if (av.read_frame(framenr) != 0) {
-        error("aviread: cannot read frame %d", framenr);
-        return retval;
-    }
-
-    AVFrame *frame = av.get_rgbframe();
-
-    dim_vector d = dim_vector(av.get_height(), av.get_width(), 3);
-    NDArray image = NDArray(d, 0);
-    for (unsigned int y = 0; y < av.get_height(); y++) {
-        for (unsigned int x = 0; x < av.get_width(); x++) {
-          image(y, x, 0) = (double)frame->data[0][y * frame->linesize[0] + 3*x + 2]/255;
-          image(y, x, 1) = (double)frame->data[0][y * frame->linesize[0] + 3*x + 1]/255;
-          image(y, x, 2) = (double)frame->data[0][y * frame->linesize[0] + 3*x + 0]/255;
+    if (args.length() == 2) {
+        if (av.read_frame(framenr) != 0) {
+            error("aviread: cannot read frame %d", framenr);
+            return retval;
         }
-    }
 
-    retval.append(octave_value(image));
+        AVFrame *frame = av.get_rgbframe();
+
+        dim_vector d = dim_vector(av.get_height(), av.get_width(), 3);
+        //uint8NDArray image = uint8NDArray(d, 0);
+        NDArray image = NDArray(d, 0);
+        for (unsigned int y = 0; y < av.get_height(); y++) {
+            for (unsigned int x = 0; x < av.get_width(); x++) {
+                image(y, x, 0) = (unsigned int)frame->data[0][y * frame->linesize[0] + 3*x + 2];
+                image(y, x, 1) = (unsigned int)frame->data[0][y * frame->linesize[0] + 3*x + 1];
+                image(y, x, 2) = (unsigned int)frame->data[0][y * frame->linesize[0] + 3*x + 0];
+            }
+        }
+
+        retval.append(octave_value(image));
+
+    } /*else {
+        dim_vector d;
+        d.resize (4);
+        d (0) = av.get_height();
+        d (1) = av.get_width();
+        d (2) = 3;
+        d (3) = av.get_total_frames ();
+        uint8NDArray image = uint8NDArray(d, 0);
+
+        for (; framenr <= av.get_total_frames (); ++framenr) {
+            if (av.read_frame(framenr) != 0) {
+                error("aviread: cannot read frame %d", framenr);
+                return retval;
+            }
+
+            AVFrame *frame = av.get_rgbframe();
+
+            for (unsigned int y = 0; y < av.get_height(); y++) {
+                for (unsigned int x = 0; x < av.get_width(); x++) {
+                    image(y, x, 0, framenr) = (double)frame->data[0][y * frame->linesize[0] + 3*x + 2];
+                    image(y, x, 1, framenr) = (double)frame->data[0][y * frame->linesize[0] + 3*x + 1];
+                    image(y, x, 2, framenr) = (double)frame->data[0][y * frame->linesize[0] + 3*x + 0];
+                }
+            }
+        }
+
+        retval.append(octave_value(image));
+    }*/
+
     return retval;
 }
 
