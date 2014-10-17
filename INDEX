@@ -1,6 +1,7 @@
-video >> Video
-Video
- addframe
- avifile
- aviinfo
- aviread
+#!/bin/bash
+echo "video >> Video"
+echo "Video"
+for n in src/*.oct; do
+   echo " $(basename -s .oct "$n")"
+done
+

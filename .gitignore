@@ -3,6 +3,8 @@ src/autom4te.cache/
 src/Makeconf
 src/Makefile
 src/config.status
+src/octave-core
+src/octave-workspace
 src/*.o
 src/*.oct
 video-*/

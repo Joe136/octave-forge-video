@@ -52,17 +52,8 @@ extern "C" {
 std::ostream *AVHandler::out = &std::cout;
 
 AVHandler::~AVHandler(void) {
-    if (frame) {
-        av_free(frame->data[0]);
-        av_free(frame);
-        frame = NULL;
-    }
-
-    if (rgbframe) {
-        av_free(rgbframe->data[0]);
-        av_free(rgbframe);
-        rgbframe = NULL;
-    }
+    if (frame)    av_frame_free (&frame);
+    if (rgbframe) av_frame_free (&rgbframe);
 
     // we can use FFMpeg's `av_close_input_file` for input files, but
     // output files must be closed manually
@@ -143,8 +134,12 @@ AVHandler::setup_write() {
     
     if (init_video_codecs() != 0) return -1;
    
-    frame = create_frame(vstream->codec->pix_fmt);
+    if (frame)    av_frame_free (&frame);
+    if (rgbframe) av_frame_free (&rgbframe);
+
+    frame    = create_frame(vstream->codec->pix_fmt);
     rgbframe = create_frame(PIX_FMT_RGB24);
+
     if (!frame || !rgbframe) return -1;
 
     if (avformat_write_header(av_output, NULL) < 0) {
@@ -225,6 +220,7 @@ AVHandler::setup_read() {
     if (entry) comment = entry->value;
     }
 
+    if (rgbframe) av_frame_free (&rgbframe);
     rgbframe = create_frame(PIX_FMT_RGB24);
     if (!rgbframe) return -1;
 
@@ -259,6 +255,7 @@ AVHandler::write_frame() {
                                       SWS_BICUBIC, 0, 0, 0);
       sws_scale(sc, rgbframe->data, rgbframe->linesize, 0,
                 c->height, frame->data, frame->linesize);
+      //sws_freeContext (sc);
     }
 
     if (NULL == frame && !(c->codec->capabilities & CODEC_CAP_DELAY)) {
@@ -331,10 +328,12 @@ AVHandler::read_frame(unsigned int nr) {
         stream_time_base = (double)vstream->time_base.num / vstream->time_base.den;
     }
 
-    frame = avcodec_alloc_frame();
+    if (frame) av_frame_free(&frame);
+    frame = av_frame_alloc();
 
     uint64_t current_timestamp = 0;
     AVPacket packet;
+    packet.data = nullptr;
 
 
     // Redirect stderr to /dev/null
@@ -350,13 +349,16 @@ AVHandler::read_frame(unsigned int nr) {
             if (av_read_frame(av_input, &packet)) {
                 (*out) << "AVHandler: Error reading packet after timestamp " << current_timestamp << std::endl;
                 av_free_packet(&packet);
-                av_free(frame); frame = NULL;
+                av_frame_free(&frame);
                 return -1;
             }
 
             if (av_input->pb->eof_reached) {
                 (*out) << "AVHandler: EOF reached" << std::endl;
             }
+
+            if (packet.stream_index == vstream->index)
+                av_free_packet(&packet);
         }
 
         // Decode the packet into a frame
@@ -368,15 +370,18 @@ AVHandler::read_frame(unsigned int nr) {
         if (avcodec_decode_video2(cc, frame, &frameFinished, &packet) < 0) {
             (*out) << "AVHandler: Error decoding video stream" << std::endl;
             av_free_packet(&packet);
-            av_free(frame); frame = NULL;
+            av_frame_free(&frame);
             return -1;
         }
+
         if (frameFinished) {
             current_timestamp = (uint64_t)(vstream->cur_dts * AV_TIME_BASE * (long double)stream_time_base);
         }
     }
 
+    // Restore redirecttion of stderr
     dup2(STDERR_FILENO, fb_err->fd() );
+    fb_err.reset ();
 
     cc->skip_frame = AVDISCARD_NONE;
 
@@ -386,8 +391,9 @@ AVHandler::read_frame(unsigned int nr) {
     sws_scale(sc, frame->data, frame->linesize, 0,
               cc->height, rgbframe->data, rgbframe->linesize);
 
+    sws_freeContext (sc);
     av_free_packet(&packet);
-    av_free(frame); frame = NULL;
+    av_frame_free(&frame);
 
     return 0;
 }
@@ -484,7 +490,7 @@ AVHandler::create_frame(PixelFormat fmt) {
     AVFrame *frame;
     uint8_t *frame_buf;
 
-    frame = avcodec_alloc_frame();
+    frame = av_frame_alloc();
     if (!frame) {
         (*out) << "AVHandler: cannot allocate frame" << std::endl;
         return NULL;
@@ -496,7 +502,7 @@ AVHandler::create_frame(PixelFormat fmt) {
 
     frame_buf = (uint8_t *)malloc(size);
     if (!frame_buf) {
-        av_free(frame);
+        av_frame_free(&frame);
         (*out) << "AVHandler: error initialising frame" << std::endl;
         return NULL;
     }

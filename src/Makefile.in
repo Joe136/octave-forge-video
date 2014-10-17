@@ -1,6 +1,6 @@
 sinclude Makeconf
 
-OCTFILES = avifile.oct aviread.oct aviinfo.oct addframe.oct
+OCTFILES = avifile.oct aviread.oct aviinfo.oct addframe.oct VideoReader.oct
 
 FFMPEG_CONFIG = @FFMPEG_CONFIG@
 ifdef FFMPEG_CONFIG
@@ -16,18 +16,22 @@ AVOBJS = AVHandler.o oct-avifile.o
 .PHONY: all strip
 all: ${OCTFILES}
 
+.PHONY: debug
+debug: COMMON_CXX += $(DEBUGFLAGS)
+debug: all
+
 .PHONY: clean
 clean:
-	rm -f *.o *.oct avctest *~ octave-core
+	@rm -f *.o *.oct avctest *~ octave-core octave-workspace
 
 oct-avifile.o: AVHandler.o
 
-${AVOBJS}: %.o: %.cc
-	CXXFLAGS="$(CXXFLAGS) $(COMMON_CXX)" \
+${AVOBJS}: %.o: %.cc %.h
+	@CXXFLAGS="$(CXXFLAGS) $(COMMON_CXX)" \
 	mkoctfile -v -c $(FFMPEG_DEFS) $(FFMPEG_CFLAGS) $(CPPFLAGS) $< -o $@
 
 ${OCTFILES}: %.oct: %.cc AVHandler.o oct-avifile.o
-	CXXFLAGS="$(CXXFLAGS) $(COMMON_CXX)" \
+	@CXXFLAGS="$(CXXFLAGS) $(COMMON_CXX)" \
 	mkoctfile -v $(FFMPEG_DEFS) $< $(filter %.o, $^) $(FFMPEG_LIBS) $(FFMPEG_CFLAGS) $(CPPFLAGS)
 
 avctest.o: avctest.cc

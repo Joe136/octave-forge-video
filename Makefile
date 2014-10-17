@@ -11,26 +11,30 @@ TMPDIR ?= /tmp
 PACKAGE ?= $(TMPDIR)/$(PKGDIR).tar.gz
 PKG := $(shell echo $(PKGDIR) | sed -e 's|^\(.*\)-.*|\1|')
 
-all: build package
-#all: build
+all: build
+
+debug: build-debug
 
 build:
-	@if [ -e src/Makefile ]; then \
-	   $(MAKE) -C src all; \
-	fi
+	@if [ -e src/Makefile ]; then $(MAKE) -C src all; fi
+
+build-debug:
+	@if [ -e src/Makefile ]; then $(MAKE) -C src debug; fi
 
 package: build
-	@if [ -e "$(PKGDIR)" ]; then \
-		rm -r "$(PKGDIR)"; \
-	fi; \
+	@if [ -e "$(PACKAGE)" ]; then rm -f "$(PACKAGE)"; fi; \
+	if [ -e "$(PKGDIR)" ]; then rm -fr "$(PKGDIR)"; fi; \
 	mkdir -p "$(PKGDIR)"; \
 	mkdir -p "$(PKGDIR)/src"; \
-	cp ChangeLog COPYING DESCRIPTION INDEX README.md "$(PKGDIR)"/; \
-	cp -r doc "$(PKGDIR)"/; \
-	cp src/*.oct "$(PKGDIR)"/src/; \
-	tar -czf $(PACKAGE) $(PKGDIR);
+	cp ChangeLog COPYING DESCRIPTION README.md "$(PKGDIR)/"; \
+	bash INDEX > "$(PKGDIR)/INDEX"; \
+	cp -r doc "$(PKGDIR)/"; \
+	cp src/*.oct "$(PKGDIR)/src/"; \
+	tar -czf $(PACKAGE) $(PKGDIR); \
+	chmod o+w -R $(PKGDIR); \
+	chmod o+w $(PACKAGE); \
 
-install:
+install: package
 	@cd ../; \
 	if [ "X${DISTPKG}X" != "XX" ]; then \
 	  stripcmd="unlink(pkg('local_list'));unlink(pkg('global_list'));"; \
@@ -75,6 +79,6 @@ install:
 	fi;
 
 clean:
-	rm $(PACKAGE)
-	rm -r $(PKGDIR)
-	$(MAKE) -C src clean
+	@if [ -e "$(PACKAGE)" ]; then rm -f "$(PACKAGE)"; fi; \
+	if [ -e "$(PKGDIR)" ]; then rm -fr "$(PKGDIR)"; fi; \
+	if [ -e src/Makefile ]; then $(MAKE) -C src clean; fi
