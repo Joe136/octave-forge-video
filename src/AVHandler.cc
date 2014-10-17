@@ -333,7 +333,6 @@ AVHandler::read_frame(unsigned int nr) {
 
     uint64_t current_timestamp = 0;
     AVPacket packet;
-    packet.data = nullptr;
 
 
     // Redirect stderr to /dev/null
@@ -356,9 +355,6 @@ AVHandler::read_frame(unsigned int nr) {
             if (av_input->pb->eof_reached) {
                 (*out) << "AVHandler: EOF reached" << std::endl;
             }
-
-            if (packet.stream_index == vstream->index)
-                av_free_packet(&packet);
         }
 
         // Decode the packet into a frame
@@ -377,6 +373,9 @@ AVHandler::read_frame(unsigned int nr) {
         if (frameFinished) {
             current_timestamp = (uint64_t)(vstream->cur_dts * AV_TIME_BASE * (long double)stream_time_base);
         }
+
+        if (current_timestamp <= target_timestamp)
+            av_free_packet(&packet);
     }
 
     // Restore redirecttion of stderr

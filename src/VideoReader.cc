@@ -271,7 +271,7 @@ octave_value VideoReader::read (int from, int to, bool native) {
       posR  = i * (height * width * depth);
       posG  = posR + (height * width);
       posB  = posG + (height * width);
-//      frame = m_oAV.get_rgbframe ();
+      frame = m_oAV.get_rgbframe ();
 
       for (unsigned int x = 0; x < width; ++x) {
          int row   = 3 * x;
@@ -280,9 +280,9 @@ octave_value VideoReader::read (int from, int to, bool native) {
          for (unsigned int y = 0; y < height; ++y) {
             //pixel = y * frame->linesize[0] + row;
 
-//            image(posR++) = (unsigned int)frame->data[0][pixel + 2];
-//            image(posG++) = (unsigned int)frame->data[0][pixel + 1];
-//            image(posB++) = (unsigned int)frame->data[0][pixel + 0];
+            image(posR++) = (unsigned int)frame->data[0][pixel + 2];
+            image(posG++) = (unsigned int)frame->data[0][pixel + 1];
+            image(posB++) = (unsigned int)frame->data[0][pixel + 0];
 
             pixel += frame->linesize[0];
          }//end for 3
