@@ -93,11 +93,12 @@ class AVHandler {
   int write_frame();
 
   // read frame nr from file into rgbframe
-  int read_frame(unsigned int nr);
+  int read_frame(unsigned int nr, bool force = false);
+  int next_frame();
 
-  static void print_file_formats();
+  static std::string print_file_formats();
 
-  static void print_codecs();
+  static std::string print_codecs();
 
   // The following routines can be used before `setup_write'
 
@@ -220,16 +221,30 @@ class AVHandler {
     return rgbframe;
   }
 
-  static inline void set_log(std::ostream *log) {
+  inline AVFrame *get_rawframe() {
+    return frame;
+  }
+
+  inline void set_log(std::ostream *log) {
     AVHandler::out = log;
+  }
+
+  inline void set_err(std::ostream *err) {
+    AVHandler::err = err;
+  }
+
+  inline void set_silentRead(bool silent) {
+    silentRead = silent;
   }
 
   //virtual void print (std::ostream &os, bool pr_as_read_syntax=false) const {
   //  os << "<video handle>";
   //}
 
- private:
-  static std::ostream *out;
+ protected:
+  std::ostream *out = &std::cout;
+  std::ostream *err = &std::cerr;
+  bool silentRead   = false;
 
   AVFormatContext *av_output;
   AVFormatContext *av_input;

@@ -25,6 +25,7 @@
 #include "AVHandler.h"
 
 #include <string>
+#include <sstream>
 #include <cassert>
 #include <cstdlib>
 #include <memory>
@@ -49,7 +50,6 @@ extern "C" {
 #define snprintf _snprintf
 #endif
 
-std::ostream *AVHandler::out = &std::cout;
 
 AVHandler::~AVHandler(void) {
     if (frame)    av_frame_free (&frame);
@@ -250,7 +250,7 @@ AVHandler::write_frame() {
     AVCodecContext *c = vstream->codec;
 
     if (frame && rgbframe) {
-      SwsContext *sc = sws_getContext(c->width, c->height, PIX_FMT_BGR24, 
+      SwsContext *sc = sws_getContext(c->width, c->height, PIX_FMT_RGB24, 
                                       c->width, c->height, c->pix_fmt, 
                                       SWS_BICUBIC, 0, 0, 0);
       sws_scale(sc, rgbframe->data, rgbframe->linesize, 0,
@@ -288,14 +288,20 @@ AVHandler::write_frame() {
 	}
 
     }
-    
+
     frame_nr++;
     return output_ready ? pkt.size : 0;
 }
 
 int
-AVHandler::read_frame(unsigned int nr) {
+AVHandler::read_frame(unsigned int nr, bool force) {
     nr--; // zero-based calculations
+
+    if (!force && frame_nr && nr == frame_nr + 1) {
+        int ret = next_frame ();
+        if (ret == 0)
+            return ret;
+    }
 
     AVCodecContext *cc = vstream->codec;
 
@@ -304,20 +310,21 @@ AVHandler::read_frame(unsigned int nr) {
     if ((uint64_t)vstream->start_time != (uint64_t)AV_NOPTS_VALUE) {
         start_time = vstream->start_time;
     }
-    uint64_t target_timestamp = start_time + nr*(uint64_t)(AV_TIME_BASE / framerate);
+    uint64_t target_timestamp = start_time + nr * (uint64_t)(AV_TIME_BASE / framerate);
 
     if (((target_timestamp - start_time) < 0) ||
         ((target_timestamp - start_time) >= (uint64_t)av_input->duration)) {
-        (*out) << "AVHandler: Invalid frame requested" << std::endl;
+        (*err) << "AVHandler: Invalid frame requested" << std::endl;
         return -1;
     }
 
     // Seek to closest keyframe
     if (av_seek_frame(av_input, -1, target_timestamp, AVSEEK_FLAG_BACKWARD) < 0) {
-        (*out) << "AVHandler: Error seeking to " << target_timestamp << std::endl;
+        (*err) << "AVHandler: Error seeking to " << target_timestamp << std::endl;
         return -1;
     }
     cc->skip_frame = AVDISCARD_NONKEY;
+    frame_nr = nr;
 
     // Flush stream buffers after seek
     avcodec_flush_buffers(cc);
@@ -333,12 +340,16 @@ AVHandler::read_frame(unsigned int nr) {
 
     uint64_t current_timestamp = 0;
     AVPacket packet;
+    std::shared_ptr<__gnu_cxx::stdio_filebuf<char> > fb_err;
+    int      old_err;
 
 
     // Redirect stderr to /dev/null
-    std::shared_ptr<__gnu_cxx::stdio_filebuf<char> > fb_err = std::make_shared<__gnu_cxx::stdio_filebuf<char> > (open("/dev/null", O_RDWR), std::ios_base::out);
-    dup2(fb_err->fd(), STDERR_FILENO);
-
+    if (silentRead) {
+        fb_err = std::make_shared<__gnu_cxx::stdio_filebuf<char> > (open("/dev/null", O_RDWR), std::ios_base::out);
+        old_err = dup (STDERR_FILENO);
+        dup2 (fb_err->fd(), STDERR_FILENO);
+    }
 
     while (current_timestamp <= target_timestamp) {
 
@@ -346,16 +357,17 @@ AVHandler::read_frame(unsigned int nr) {
         packet.stream_index = -1;
         while (packet.stream_index != vstream->index) {
             if (av_read_frame(av_input, &packet)) {
-                (*out) << "AVHandler: Error reading packet after timestamp " << current_timestamp << std::endl;
+                (*err) << "AVHandler: Error reading packet after timestamp " << current_timestamp << std::endl;
                 av_free_packet(&packet);
                 av_frame_free(&frame);
+                if (silentRead) { dup2(old_err, STDERR_FILENO); close (old_err); fb_err.reset (); }
                 return -1;
             }
 
             if (av_input->pb->eof_reached) {
                 (*out) << "AVHandler: EOF reached" << std::endl;
             }
-        }
+        }//end while 2
 
         // Decode the packet into a frame
         int frameFinished;
@@ -364,9 +376,10 @@ AVHandler::read_frame(unsigned int nr) {
         packet.flags = AV_PKT_FLAG_KEY;
 
         if (avcodec_decode_video2(cc, frame, &frameFinished, &packet) < 0) {
-            (*out) << "AVHandler: Error decoding video stream" << std::endl;
+            (*err) << "AVHandler: Error decoding video stream" << std::endl;
             av_free_packet(&packet);
             av_frame_free(&frame);
+            if (silentRead) { dup2(old_err, STDERR_FILENO); close (old_err); fb_err.reset (); }
             return -1;
         }
 
@@ -376,16 +389,19 @@ AVHandler::read_frame(unsigned int nr) {
 
         if (current_timestamp <= target_timestamp)
             av_free_packet(&packet);
-    }
+    }//end while 1
 
-    // Restore redirecttion of stderr
-    dup2(STDERR_FILENO, fb_err->fd() );
-    fb_err.reset ();
+    // Restore redirection of stderr
+    if (silentRead) {
+        dup2(old_err, STDERR_FILENO);
+        close (old_err);
+        fb_err.reset ();
+    }
 
     cc->skip_frame = AVDISCARD_NONE;
 
-    SwsContext *sc = sws_getContext(cc->width, cc->height, cc->pix_fmt, 
-                                    cc->width, cc->height, PIX_FMT_BGR24, 
+    SwsContext *sc = sws_getContext(cc->width, cc->height, cc->pix_fmt,
+                                    cc->width, cc->height, PIX_FMT_RGB24,
                                     SWS_BICUBIC, 0, 0, 0);
     sws_scale(sc, frame->data, frame->linesize, 0,
               cc->height, rgbframe->data, rgbframe->linesize);
@@ -397,31 +413,118 @@ AVHandler::read_frame(unsigned int nr) {
     return 0;
 }
 
-void
+int
+AVHandler::next_frame() {
+    AVCodecContext *cc = vstream->codec;
+
+    cc->skip_frame = AVDISCARD_NONKEY;
+//    cc->skip_frame = AVDISCARD_NONE;
+
+    if (frame) av_frame_free(&frame);
+    frame = av_frame_alloc();
+
+    AVPacket packet;
+    std::shared_ptr<__gnu_cxx::stdio_filebuf<char> > fb_err;
+    int      old_err;
+    ++frame_nr;
+
+
+    // Redirect stderr to /dev/null
+    if (silentRead) {
+        fb_err = std::make_shared<__gnu_cxx::stdio_filebuf<char> > (open("/dev/null", O_RDWR), std::ios_base::out);
+        old_err = dup (STDERR_FILENO);
+        dup2 (fb_err->fd(), STDERR_FILENO);
+    }
+
+
+    // Decode the packet into a frame
+    int frameFinished = 0;
+
+    while (!frameFinished) {
+        // Read until we find a packet from the video stream
+        packet.stream_index = -1;
+        while (packet.stream_index != vstream->index) {
+            if (av_read_frame(av_input, &packet)) {
+                if (!silentRead) (*err) << "AVHandler: Error reading packet for target frame " << frame_nr << std::endl;
+                av_free_packet(&packet);
+                av_frame_free(&frame);
+                if (silentRead) { dup2(old_err, STDERR_FILENO); close (old_err); fb_err.reset (); }
+                return -1;
+            }
+
+            if (av_input->pb->eof_reached) {
+                (*out) << "AVHandler: EOF reached" << std::endl;
+            }
+        }//end while 2
+
+        // HACK for CorePNG to decode as normal PNG by default
+        packet.flags = AV_PKT_FLAG_KEY;
+
+        if (avcodec_decode_video2(cc, frame, &frameFinished, &packet) < 0) {
+            if (!silentRead) (*err) << "AVHandler: Error decoding video stream for target frame " << frame_nr << std::endl;
+            av_free_packet(&packet);
+            av_frame_free(&frame);
+            if (silentRead) { dup2(old_err, STDERR_FILENO); close (old_err); fb_err.reset (); }
+            return -1;
+        }
+    }//end while 1
+
+
+    // Restore redirection of stderr
+    if (silentRead) {
+        dup2(old_err, STDERR_FILENO);
+        close (old_err);
+        fb_err.reset ();
+    }
+
+    cc->skip_frame = AVDISCARD_NONE;
+
+    SwsContext *sc = sws_getContext(cc->width, cc->height, cc->pix_fmt,
+                                    cc->width, cc->height, PIX_FMT_RGB24,
+                                    SWS_BICUBIC, 0, 0, 0);
+    sws_scale(sc, frame->data, frame->linesize, 0,
+              cc->height, rgbframe->data, rgbframe->linesize);
+
+    sws_freeContext (sc);
+    av_free_packet(&packet);
+    av_frame_free(&frame);
+
+    return 0;
+}
+
+std::string
 AVHandler::print_file_formats() {
-    (*out) << "Supported file formats:" << std::endl;
+    std::stringstream ss;
+
+    ss << "Supported file formats:" << std::endl;
     av_register_all();
 
     AVOutputFormat *ofmt = NULL;
     while (NULL != (ofmt = av_oformat_next(ofmt))) {
-        (*out) << ofmt->name << " ";
+        ss << ofmt->name << " ";
     }
-    (*out) << std::endl << std::endl;
+    ss << std::endl;
+
+    return ss.str();
 }
 
-void
+std::string
 AVHandler::print_codecs() {
-    (*out) << "Supported video codecs:" << std::endl;
+    std::stringstream ss;
+
+    ss << "Supported video codecs:" << std::endl;
     av_register_all();
 
     AVCodec *codec;
     for (codec = av_codec_next(0); codec != NULL; codec = av_codec_next(codec)) {
         if ((codec->type == AVMEDIA_TYPE_VIDEO) &&
             (codec->encode2)) {
-            (*out) << codec->name << " ";
+            ss << codec->name << " ";
         }
     }
-    (*out) << std::endl;
+    ss << std::endl;
+
+    return ss.str();
 }
 
 int

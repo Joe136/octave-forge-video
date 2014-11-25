@@ -52,6 +52,9 @@ DEFUN_DLD(VideoReader, args, nargout,
 
    VideoReader *video_ = new VideoReader (args(0).string_value () );
 
+   video_->setConfig (VideoReader::VR_SilentRead, true);
+   video_->setConfig (VideoReader::VR_ZeroImage,  false);
+
    retval (0) = octave_value (video_);
    return retval;
 }//end Fct
@@ -72,6 +75,7 @@ VideoReader::VideoReader (std::string filename) : octave_class (octave_map (), "
 
    m_oAV.set_filename (m_sFilename);
    m_oAV.set_log (&octave_stdout);
+   m_oAV.set_err (&octave_stdout);
 
    if (m_oAV.setup_read() != 0) {
       //error ("aviread: AVHandler setup failed");
@@ -100,39 +104,51 @@ octave_value_list VideoReader::subsref (const std::string &type, const std::list
    if (idx.size () == 1 && type.length () >= 1 && type[0] == '.') {
       std::string  s = idx.front ()(0).string_value ();
       std::transform(s.begin(), s.end(), s.begin(), ::tolower);
-      octave_value t;
 
       if (!s.compare ("numberofframes") )
-         t = octave_value (m_oAV.get_total_frames () );
+         retval(0) = octave_value (m_oAV.get_total_frames () );
 
       else if (!s.compare ("height") )
-         t = octave_value (m_oAV.get_height () );
+         retval(0) = octave_value (m_oAV.get_height () );
 
       else if (!s.compare ("width") )
-         t = octave_value (m_oAV.get_width () );
+         retval(0) = octave_value (m_oAV.get_width () );
 
       else if (!s.compare ("framerate") )
-         t = octave_value (m_oAV.get_framerate () );
+         retval(0) = octave_value (m_oAV.get_framerate () );
 
       else if (!s.compare ("userdata") )
-         t = octave_value (m_oUserData);
+         retval(0) = octave_value (m_oUserData);
 
       else if (!s.compare ("tag") )
-         t = octave_value (m_sTag);
+         retval(0) = octave_value (m_sTag);
+
+      else if (!s.compare ("currenttime") )
+         warning ("VideoReader: 'currenttime' not implemented yet");
+
+      else if (!s.compare ("duration") )
+         warning ("VideoReader: 'duration' not implemented yet");
 
       else if (!s.compare ("path") )
-         t = octave_value (m_sFilename);
+         retval(0) = octave_value (m_sFilename);
 
       else if (!s.compare ("isvalid") )
-         t = octave_value (m_bIsValid);
+         retval(0) = octave_value (m_bIsValid);
 
-      //else if (!s.compare ("VideoFormat") )
-      //   t = octave_value (m_oAV.print_file_formats () );
+      else if (!s.compare ("name") )
+         warning ("VideoReader: 'name' not implemented yet");
+
+      else if (!s.compare ("bitsperpixel") )
+         warning ("VideoReader: 'bitsperpixel' not implemented yet");
+
+      else if (!s.compare ("type") )
+         warning ("VideoReader: 'type' not implemented yet");
+
+      else if (!s.compare ("videoformat") )
+         warning ("VideoReader: 'videoformat' not implemented yet");
 
       else
          error ("VideoReader: unknown VideoReader property %s", s.c_str () );
-
-      retval(0) = t;
 
    } else if (idx.size () == 2 && type.length () >= 1 && type[0] == '.' && type[1] == '(') {
       std::string s = idx.front ()(0).string_value ();
@@ -191,17 +207,55 @@ octave_value_list VideoReader::subsref (const std::string &type, const std::list
       } else if (!s.compare ("get") ) {
          warning ("VideoReader: 'get' not implemented yet");
 
-      } else if (!s.compare ("getfileformats") ) {
-         warning ("VideoReader: 'getFileFormats' not implemented yet");
-
       } else if (!s.compare ("set") ) {
-         warning ("VideoReader: 'set' not implemented yet");
+         octave_value_list list = *(++ idx.begin () );
+
+         if (list.length () >= 2 && list.length () % 2 == 0) {
+            boolNDArray resMap = boolNDArray (dim_vector (list.length () / 2, 1) );
+
+            for (int i = 0, n = 0; i < list.length(); i += 2, ++n) {
+               if (list(i).is_char_matrix () )
+                  resMap(n) = this->set (list(i).char_matrix_value ().row_as_string (0), list(i + 1) );
+               else
+                  error ("VideoReader: argument %i (should be a parameter name) is not a string", i);
+            }//end for
+
+            retval(0) = resMap;
+         } else
+            error ("VideoReader: uneven count of arguments");
+
+      } else if (!s.compare ("codecs") ) {
+         retval(0) = octave_value (m_oAV.print_codecs () );
+
+      } else if (!s.compare ("getfileformats") ) {
+         retval(0) = octave_value (m_oAV.print_file_formats () );
 
       } else
          error ("VideoReader: unknown VideoReader method '%s'", s.c_str () );
    }
 
    return retval;
+}//end Fct
+
+
+
+//---------------------------Start set---------------------------------------------//
+bool VideoReader::set (std::string type, const octave_value &value) {
+   LOGGING ("VideoReader::set(%s, <value>)\n", type.c_str() );
+
+   bool res = false;
+   std::transform(type.begin(), type.end(), type.begin(), ::tolower);
+
+   if (!type.compare ("zeroimage") ) {
+      if (value.is_bool_type () )
+         res = setConfig (VideoReader::VR_ZeroImage,  value.bool_value () );
+
+   } else if (!type.compare ("silentread") ) {
+      if (value.is_bool_type () )
+         res = setConfig (VideoReader::VR_SilentRead, value.bool_value () );
+   }
+
+   return res;
 }//end Fct
 
 
@@ -229,9 +283,8 @@ octave_value VideoReader::read (int from, int to, bool native) {
    if (!m_bIsValid)
       return octave_value ();
 
-   if (native) {
+   if (native)
       warning ("VideoReader.read: 'native' not implemented yet");
-   }
 
    if (from)
       m_iFrameNum = from;
@@ -256,10 +309,14 @@ octave_value VideoReader::read (int from, int to, bool native) {
       d = dim_vector (height, width, depth);
    }
 
-   uint8NDArray    image = uint8NDArray (d, 0);
-   octave_idx_type posR  = 0;
-   octave_idx_type posG  = 0;
-   octave_idx_type posB  = 0;
+   uint8NDArray image = uint8NDArray (d);
+
+   if (m_bZeroImage)
+      image.fill (0);
+
+   octave_idx_type  posR  = 0;
+   octave_idx_type  posG  = 0;
+   octave_idx_type  posB  = 0;
 
    for (int i = 0; from <= to; ++from, ++i) {
       if (m_oAV.read_frame (from) != 0) {
@@ -267,7 +324,7 @@ octave_value VideoReader::read (int from, int to, bool native) {
          break;
       }
 
-      //pos   = ( ( ( (0) * (to-from) + i) * depth + 0) * width + x) * height + y;
+      //pos   = ( ( ( (0) * (to-from) + i) * depth + <0|1|2>) * width + x) * height + y;
       posR  = i * (height * width * depth);
       posG  = posR + (height * width);
       posB  = posG + (height * width);
@@ -278,11 +335,11 @@ octave_value VideoReader::read (int from, int to, bool native) {
          int pixel = row;
 
          for (unsigned int y = 0; y < height; ++y) {
-            //pixel = y * frame->linesize[0] + row;
+            //pixel = y * frame->linesize[0] + 3 * x;
 
-            image(posR++) = (unsigned int)frame->data[0][pixel + 2];
+            image(posR++) = (unsigned int)frame->data[0][pixel + 0];
             image(posG++) = (unsigned int)frame->data[0][pixel + 1];
-            image(posB++) = (unsigned int)frame->data[0][pixel + 0];
+            image(posB++) = (unsigned int)frame->data[0][pixel + 2];
 
             pixel += frame->linesize[0];
          }//end for 3

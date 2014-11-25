@@ -32,6 +32,14 @@
 
 //---------------------------Class VideoReader-------------------------------------//
 class VideoReader : public octave_class {
+public:// Enums
+   enum ConfigType {
+      VR_None = 0,
+      VR_ZeroImage,
+      VR_SilentRead
+   };
+
+
 public:// Constructors, Destructors
    VideoReader (void);
    VideoReader (std::string filename);
@@ -41,7 +49,7 @@ public:// Constructors, Destructors
 //   std::string class_name (void) const { return "VideoReader"; }
 
 
-public:// Functions
+public:// overloaded Functions
    virtual octave_value_list subsref    (const std::string &type, const std::list< octave_value_list > &idx, int nargout);
    virtual void              print_raw  (std::ostream &os, bool pr_as_read_syntax=false) const;
    virtual size_t            byte_size  (void) const { return sizeof (VideoReader); }
@@ -54,8 +62,14 @@ public:// Functions
    //virtual octave_function *  function_value (bool silent=false) { printf ("point4"); }
 
 
+public:// Functions
+   template<class T>
+   bool setConfig (const ConfigType type, T value);
+   bool set       (std::string type, const octave_value &value);
+
 protected:// Functions
-   virtual octave_value read (int from = 0, int to = 0, bool native = false);
+   virtual octave_value read  (int from = 0, int to = 0, bool native = false);
+   //virtual octave_value write (int from = 0, int to = 0, bool native = false);
 
 
 protected:// Variables
@@ -68,5 +82,24 @@ protected:// Variables
 
    size_t       m_iFrameNum = 1;
 
+   // Configuration
+   bool m_bZeroImage = true;
+
 };//end Class
+
+
+
+//---------------------------Start setConfig---------------------------------------//
+template<class T>
+bool VideoReader::setConfig (const ConfigType type, T value) {
+   bool res = false;
+
+   switch (type) {
+   case VR_None: break;
+   case VR_ZeroImage: m_bZeroImage = (bool)value; res = true; break;
+   case VR_SilentRead: m_oAV.set_silentRead ( (bool)value); res = true; break;
+   };//end switch
+
+   return res;
+}//end Fct
 
