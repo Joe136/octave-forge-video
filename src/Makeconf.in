@@ -50,6 +50,9 @@ F77 = @F77@
 FFLAGS = @FFLAGS@
 FPICFLAG = @FPICFLAG@
 FFMPEG_DEFS = @FFMPEG_DEFS@
+OPENCV_CFLAGS = @OPENCV_CFLAGS@
+OPENCV_DEFS = @OPENCV_DEFS@
+OPENCV_LIBS = -lopencv_core -lopencv_highgui -lm #@OPENCV_LIBS@
 DEBUGFLAGS = -DDEBUG -O0 -ggdb -rdynamic
 
 OCTAVE = @OCTAVE@
@@ -64,7 +67,7 @@ XPATH = @xpath@
 ALTMPATH = @altmpath@
 ALTOPATH = @altopath@
 
-%.o: %.c ; $(MKOCTFILE) -c $<
-%.o: %.f ; $(MKOCTFILE) -c $<
-%.o: %.cc ; $(MKOCTFILE) -c $<
-%.oct: %.cc ; $(MKOCTFILE) $<
+#%.o: %.c ; $(MKOCTFILE) -c $<
+#%.o: %.f ; $(MKOCTFILE) -c $<
+#%.o: %.cc ; $(MKOCTFILE) -c $<
+#%.oct: %.cc ; $(MKOCTFILE) $<

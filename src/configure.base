@@ -334,11 +334,11 @@ dnl Check for ffmpeg
 AC_CHECK_PROG([FFMPEG_CONFIG], [pkg-config], [pkg-config])
 if test -z $FFMPEG_CONFIG ; then
   AC_MSG_WARN([`pkg-config' not found -- using default configuration])
-  FFMPEG_FLAGS="-lavcodec -lavutil -lm"
-  echo $FFMPEG_FLAGS
+  FFMPEG_FLAGS="-lavcodec -lavutil -lavformat -lswscale -lm"
+dnl  echo $FFMPEG_FLAGS
 else
   FFMPEG_FLAGS=`pkg-config libavformat libavcodec libavutil libswscale --libs --cflags`
-  echo $FFMPEG_FLAGS
+dnl   echo $FFMPEG_FLAGS
 fi
 
 AC_CHECK_LIB([avformat], [av_write_frame], [],
@@ -373,6 +373,27 @@ AC_CHECK_DECL(AVSEEK_FLAG_BACKWARD, [],
 #include <libavformat/avformat.h>
 #endif])
 CPPFLAGS=$OLD_CPPFLAGS
+
+dnl Check for opencv
+AC_CHECK_PROG([OPENCV_CONFIG], [pkg-config], [pkg-config])
+if test -z $OPENCV_CONFIG ; then
+  AC_MSG_WARN([`pkg-config' not found -- using default configuration])
+  OPENCV_LIBS="-lopencv_core -lopencv_highgui -lm"
+  OPENCV_CFLAGS=""
+  OPENCV_DEFS=""
+else
+  OPENCV_LIBS=`pkg-config opencv --libs`
+  OPENCV_CFLAGS=`pkg-config opencv --cflags`
+  OPENCV_DEFS=""
+fi
+
+AC_CHECK_LIB([opencv_highgui], [cvNamedWindow], [],
+			 [AC_MSG_ERROR([need libopencv_highgui from OpenCV])],
+			 [$OPENCV_CFLAGS])
+
+AC_SUBST(OPENCV_LIBS)
+AC_SUBST(OPENCV_CFLAGS)
+AC_SUBST(OPENCV_DEFS)
 
 AC_CONFIG_FILES([Makefile])
 AC_SUBST([FFMPEG_CONFIG])

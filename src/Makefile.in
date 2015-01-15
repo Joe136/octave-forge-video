@@ -1,6 +1,11 @@
 sinclude Makeconf
 
 OCTFILES = avifile.oct aviread.oct aviinfo.oct addframe.oct VideoReader.oct
+AVOBJS   = AVHandler.lib.o oct-avifile.lib.o VideoReader.lib.o
+#OCTFILES = $(wildcard src/*.cc)
+#AVOBJS   = $(wildcard src/*.cpp)
+#OCTFILES = $(OCTFILES:%.cc=%.o)
+#AVOBJS   = $(AVOBJS:%.cpp=%.lib.o)
 
 FFMPEG_CONFIG = @FFMPEG_CONFIG@
 ifdef FFMPEG_CONFIG
@@ -11,7 +16,8 @@ else
   FFMPEG_CFLAGS =
 endif
 
-AVOBJS = AVHandler.o oct-avifile.o
+OPENCV_FLAGS = $(OPENCV_CFLAGS) $(OPENCV_DEFS) $(OPENCV_LIBS)
+
 
 .PHONY: all strip
 all: ${OCTFILES}
@@ -26,13 +32,13 @@ clean:
 
 oct-avifile.o: AVHandler.o
 
-${AVOBJS}: %.o: %.cc %.h
+${AVOBJS}: %.lib.o: %.cpp %.h
 	@CXXFLAGS="$(CXXFLAGS) $(COMMON_CXX)" \
-	mkoctfile -v -c $(FFMPEG_DEFS) $(FFMPEG_CFLAGS) $(CPPFLAGS) $< -o $@
+	mkoctfile -v -c $(FFMPEG_DEFS) $(FFMPEG_CFLAGS) $(OPENCV_FLAGS) $(CPPFLAGS) $< -o $@
 
-${OCTFILES}: %.oct: %.cc AVHandler.o oct-avifile.o
+${OCTFILES}: %.oct: %.cc $(AVOBJS)
 	@CXXFLAGS="$(CXXFLAGS) $(COMMON_CXX)" \
-	mkoctfile -v $(FFMPEG_DEFS) $< $(filter %.o, $^) $(FFMPEG_LIBS) $(FFMPEG_CFLAGS) $(CPPFLAGS)
+	mkoctfile -v $(FFMPEG_DEFS) $< $(filter %.o, $^) $(FFMPEG_LIBS) $(FFMPEG_CFLAGS) $(OPENCV_LIBS) $(CPPFLAGS)
 
 avctest.o: avctest.cc
 	g++ -Wall -c avctest.cc -o avctest.o

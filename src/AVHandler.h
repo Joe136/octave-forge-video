@@ -46,7 +46,7 @@ extern "C" {
  #include <ffmpeg/avformat.h>
 #elif defined(HAVE_LIBAVFORMAT_AVFORMAT_H)
  #include <libavformat/avformat.h>
-#include <libavformat/avio.h>
+ #include <libavformat/avio.h>
 #else
  #error "Missing ffmpeg headers"
 #endif

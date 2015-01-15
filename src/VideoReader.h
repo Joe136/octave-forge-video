@@ -26,7 +26,7 @@
 //---------------------------Includes----------------------------------------------//
 #include <octave/oct.h>
 #include <octave/ov-class.h>
-#include "AVHandler.h"
+#include <opencv2/opencv.hpp>
 
 
 
@@ -51,7 +51,7 @@ public:// Constructors, Destructors
 
 public:// overloaded Functions
    virtual octave_value_list subsref    (const std::string &type, const std::list< octave_value_list > &idx, int nargout);
-   virtual void              print_raw  (std::ostream &os, bool pr_as_read_syntax=false) const;
+   virtual void              print_raw  (std::ostream &os, bool pr_as_read_syntax=false); //const;
    virtual size_t            byte_size  (void) const { return sizeof (VideoReader); }
    virtual Matrix            size       (void)       { return Matrix (1, 2, 1.0); }   // size = 1x1
 
@@ -73,14 +73,14 @@ protected:// Functions
 
 
 protected:// Variables
-   bool         m_bIsValid = false;
-   std::string  m_sFilename;
-   AVHandler    m_oAV = AVHandler ();
+   bool             m_bIsValid = false;
+   std::string      m_sFilename;
+   cv::VideoCapture m_oVC = cv::VideoCapture ();
 
-   octave_value m_oUserData;
-   std::string  m_sTag;
+   octave_value     m_oUserData;
+   std::string      m_sTag;
 
-   size_t       m_iFrameNum = 1;
+   size_t           m_iFrameNum = 1;
 
    // Configuration
    bool m_bZeroImage = true;
@@ -97,7 +97,7 @@ bool VideoReader::setConfig (const ConfigType type, T value) {
    switch (type) {
    case VR_None: break;
    case VR_ZeroImage: m_bZeroImage = (bool)value; res = true; break;
-   case VR_SilentRead: m_oAV.set_silentRead ( (bool)value); res = true; break;
+   //case VR_SilentRead: m_oVC.set_silentRead ( (bool)value); res = true; break;
    };//end switch
 
    return res;
