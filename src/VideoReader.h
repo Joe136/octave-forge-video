@@ -28,6 +28,10 @@
 #include <octave/ov-class.h>
 #include <opencv2/opencv.hpp>
 
+#ifdef FFMPEG_HACK
+#include "ffmpeg_hack.h"
+#endif
+
 
 
 //---------------------------Class VideoReader-------------------------------------//
@@ -37,7 +41,31 @@ public:// Enums
       VR_None = 0,
       VR_ZeroImage,
       VR_SilentRead
-   };
+   };//end Enum
+
+
+   // Hijack OpenCV-VideoCapture class
+   class VideoCapture_ : public cv::VideoCapture {
+   public:
+      VideoCapture_ ()                           : cv::VideoCapture () {}
+      VideoCapture_ (const cv::String& filename) : cv::VideoCapture (filename) {}
+      VideoCapture_ (int device)                 : cv::VideoCapture (device) {}
+
+      cv::Ptr<CvCapture> &getCap () { return cap; }
+      //cv::Ptr<CvCapture> &getICap () { return icap; }
+
+#ifdef FFMPEG_HACK
+      cv::CvCapture_ *getCap_ () { return (cv::CvCapture_*)&*cap; }
+      cv::CvCapture_FFMPEG *getFFmpegCap () {
+         cv::CvCapture_FFMPEG_proxy *proxy = (cv::CvCapture_FFMPEG_proxy*)&*cap;
+
+          if (!proxy)
+            return nullptr;
+         else
+            return (cv::CvCapture_FFMPEG*)proxy->ffmpegCapture;
+      }//end Fct
+#endif
+   };//end Class
 
 
 public:// Constructors, Destructors
@@ -66,6 +94,8 @@ public:// Functions
    template<class T>
    bool setConfig (const ConfigType type, T value);
    bool set       (std::string type, const octave_value &value);
+   static inline std::string fourccToString (int fourcc);
+
 
 protected:// Functions
    virtual octave_value read  (int from = 0, int to = 0, bool native = false);
@@ -75,12 +105,13 @@ protected:// Functions
 protected:// Variables
    bool             m_bIsValid = false;
    std::string      m_sFilename;
-   cv::VideoCapture m_oVC = cv::VideoCapture ();
+   VideoCapture_    m_oVC = VideoCapture_ ();
 
    octave_value     m_oUserData;
    std::string      m_sTag;
 
    size_t           m_iFrameNum = 1;
+   size_t           m_iGrabbedFrameNum = 0xefffffff;
 
    // Configuration
    bool m_bZeroImage = true;
@@ -101,5 +132,12 @@ bool VideoReader::setConfig (const ConfigType type, T value) {
    };//end switch
 
    return res;
+}//end Fct
+
+
+
+//---------------------------Start fourccToString----------------------------------//
+std::string VideoReader::fourccToString (int fourcc) {
+   return cv::format ("%c%c%c%c", fourcc & 255, (fourcc >> 8) & 255, (fourcc >> 16) & 255, (fourcc >> 24) & 255);
 }//end Fct
 

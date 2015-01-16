@@ -7,15 +7,7 @@ AVOBJS   = AVHandler.lib.o oct-avifile.lib.o VideoReader.lib.o
 #OCTFILES = $(OCTFILES:%.cc=%.o)
 #AVOBJS   = $(AVOBJS:%.cpp=%.lib.o)
 
-FFMPEG_CONFIG = @FFMPEG_CONFIG@
-ifdef FFMPEG_CONFIG
-  FFMPEG_LIBS = $(shell pkg-config libavformat libavcodec libavutil libswscale --libs)
-  FFMPEG_CFLAGS = $(shell pkg-config libavformat libavcodec libavutil libswscale --cflags)
-else
-  FFMPEG_LIBS = -lavformat -lavcodec -lavutil -lswscale -lz -lm
-  FFMPEG_CFLAGS =
-endif
-
+FFMPEG_FLAGS = $(FFMPEG_CFLAGS) $(FFMPEG_DEFS) $(FFMPEG_LIBS)
 OPENCV_FLAGS = $(OPENCV_CFLAGS) $(OPENCV_DEFS) $(OPENCV_LIBS)
 
 
@@ -34,11 +26,11 @@ oct-avifile.o: AVHandler.o
 
 ${AVOBJS}: %.lib.o: %.cpp %.h
 	@CXXFLAGS="$(CXXFLAGS) $(COMMON_CXX)" \
-	mkoctfile -v -c $(FFMPEG_DEFS) $(FFMPEG_CFLAGS) $(OPENCV_FLAGS) $(CPPFLAGS) $< -o $@
+	mkoctfile -v -c $(FFMPEG_FLAGS) $(OPENCV_FLAGS) $(CPPFLAGS) $< -o $@
 
 ${OCTFILES}: %.oct: %.cc $(AVOBJS)
 	@CXXFLAGS="$(CXXFLAGS) $(COMMON_CXX)" \
-	mkoctfile -v $(FFMPEG_DEFS) $< $(filter %.o, $^) $(FFMPEG_LIBS) $(FFMPEG_CFLAGS) $(OPENCV_LIBS) $(CPPFLAGS)
+	mkoctfile -v $< $(filter %.o, $^) $(FFMPEG_FLAGS) $(OPENCV_LIBS) $(CPPFLAGS)
 
 avctest.o: avctest.cc
 	g++ -Wall -c avctest.cc -o avctest.o

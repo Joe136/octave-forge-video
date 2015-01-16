@@ -621,14 +621,16 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
-OPENCV_DEFS
-OPENCV_CFLAGS
 OPENCV_LIBS
+OPENCV_CFLAGS
+OPENCV_DEFS
 OPENCV_CONFIG
+FFMPEG_LIBS
+FFMPEG_CFLAGS
+FFMPEG_DEFS
 EGREP
 GREP
 CPP
-FFMPEG_DEFS
 FFMPEG_CONFIG
 STRIP
 COPY_FLAGS
@@ -646,6 +648,7 @@ FPICFLAG
 FFLAGS
 F77
 CPICFLAG
+staticffmpeg
 altopath
 altmpath
 altpath
@@ -713,6 +716,8 @@ with_xpath
 with_altpath
 with_altmpath
 with_altopath
+enable_ffmpeghack
+enable_staticffmpeg
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1325,6 +1330,13 @@ fi
 if test -n "$ac_init_help"; then
 
   cat <<\_ACEOF
+
+Optional Features:
+  --disable-option-checking  ignore unrecognized --enable/--with options
+  --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
+  --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
+  --enable-ffmpeghack     enable hacks to get full control of ffmpeg codec (dangerous)
+  --enable-staticffmpeg     enable hacks to get full control of ffmpeg codec (dangerous)
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -2964,6 +2976,7 @@ $as_echo "$as_me: WARNING: no mkoctfile found on path" >&2;}
 
 
 
+
 # Check whether --with-path was given.
 if test "${with_path+set}" = set; then :
   withval=$with_path;  path=$withval
@@ -3005,6 +3018,16 @@ if test "${with_altopath+set}" = set; then :
   withval=$with_altopath; altopath=$withval
 fi
 
+# Check whether --enable-ffmpeghack was given.
+if test "${enable_ffmpeghack+set}" = set; then :
+  enableval=$enable_ffmpeghack;  ffmpeghack=$enableval
+fi
+
+# Check whether --enable-staticffmpeg was given.
+if test "${enable_staticffmpeg+set}" = set; then :
+  enableval=$enable_staticffmpeg;  staticffmpeg=$enableval
+fi
+
 
 if test -n "$path" ; then
    test -z "$mpath" && mpath=$path
@@ -3017,6 +3040,7 @@ if test -n "$altpath" ; then
    test -z "$altmpath" && altmpath=$altpath
    test -z "$altopath" && altopath=$altpath/oct
 fi
+
 
 #if test -z "$mpath" || test -z "$opath" || test -z "$xpath" || test -z "$altmpath" || test -z "$altopath" || test -z "$ver" ; then
 if test -z "$mpath" || test -z "$opath" || test -z "$xpath" || test -z "$ver" ; then
@@ -3448,6 +3472,7 @@ case "$canonical_host_type" in
     ;;
 esac
 
+
 # Extract the first word of "pkg-config", so it can be a program name with args.
 set dummy pkg-config; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
@@ -3488,11 +3513,14 @@ fi
 if test -z $FFMPEG_CONFIG ; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \`pkg-config' not found -- using default configuration" >&5
 $as_echo "$as_me: WARNING: \`pkg-config' not found -- using default configuration" >&2;}
-  FFMPEG_FLAGS="-lavcodec -lavutil -lavformat -lswscale -lm"
+  FFMPEG_CFLAGS=
+  FFMPEG_LIBS="-lavcodec -lavutil -lavformat -lswscale -lm"
 else
-  FFMPEG_FLAGS=`pkg-config libavformat libavcodec libavutil libswscale --libs --cflags`
+  FFMPEG_CFLAGS=`pkg-config libavformat libavcodec libavutil libswscale --cflags`
+  FFMPEG_LIBS=`pkg-config libavformat libavcodec libavutil libswscale --libs`
 fi
 
+FFMPEG_FLAGS="$FFMPEG_CFLAGS $FFMPEG_LIBS"
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for av_write_frame in -lavformat" >&5
 $as_echo_n "checking for av_write_frame in -lavformat... " >&6; }
@@ -3636,10 +3664,7 @@ else
 fi
 
 
-OLD_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $FFMPEG_FLAGS"
 FFMPEG_DEFS=
-
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
 ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
@@ -4106,7 +4131,24 @@ else
   as_fn_error $? "need a newer version of FFMpeg" "$LINENO" 5
 fi
 
-CPPFLAGS=$OLD_CPPFLAGS
+
+if test -n "$ffmpeghack" ; then
+   OLD_CPPFLAGS=$CPPFLAGS
+   FFMPEG_DEFS="$FFMPEG_DEFS -DFFMPEG_HACK"
+else
+   ffmpeghack=no
+fi
+
+if test -n "$staticffmpeg" ; then
+   FFMPEG_LIBS="-Wl,-Bstatic $FFMPEG_LIBS -Wl,-Bsymbolic"
+else
+   staticffmpeg=no
+fi
+
+
+
+
+
 
 # Extract the first word of "pkg-config", so it can be a program name with args.
 set dummy pkg-config; ac_word=$2
@@ -4209,8 +4251,8 @@ fi
 
 
 
-ac_config_files="$ac_config_files Makefile"
 
+ac_config_files="$ac_config_files Makefile"
 
 
 
@@ -5303,7 +5345,11 @@ shell commands will install into the following directories:
 
 octave-forge is configured with
    octave:      $OCTAVE (version $OCTAVE_VERSION)
-   mkoctfile:	$MKOCTFILE for Octave $subver"
+   mkoctfile:	 $MKOCTFILE for Octave $subver
+
+extra flags
+   ffmpeghack:    $ffmpeghack
+   staticffmpeg:  $staticffmpeg"
 
   ac_config_files="$ac_config_files $CONFIGURE_OUTPUTS"
 

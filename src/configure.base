@@ -58,8 +58,9 @@ AC_SUBST(xpath)
 AC_SUBST(altpath)
 AC_SUBST(altmpath)
 AC_SUBST(altopath)
+AC_SUBST(staticffmpeg)
 
-AC_ARG_WITH(path, 
+AC_ARG_WITH(path,
 	[  --with-path             install path prefix],
 	[ path=$withval ])
 AC_ARG_WITH(mpath,
@@ -71,7 +72,7 @@ AC_ARG_WITH(opath,
 AC_ARG_WITH(xpath,
 	[  --with-xpath            override path for executables],
 	[xpath=$withval])
-AC_ARG_WITH(altpath, 
+AC_ARG_WITH(altpath,
 	[  --with-altpath          alternative functions install path prefix],
 	[ altpath=$withval ])
 AC_ARG_WITH(altmpath,
@@ -79,11 +80,17 @@ AC_ARG_WITH(altmpath,
 	[altmpath=$withval])
 AC_ARG_WITH(altopath,
 	[  --with-altopath         override path for alternative oct-files],
-	[altopath=$withval])	
+	[altopath=$withval])
+AC_ARG_ENABLE(ffmpeghack,
+	[  --enable-ffmpeghack     enable hacks to get full control of ffmpeg codec (dangerous)],
+	[ ffmpeghack=$enableval ])
+AC_ARG_ENABLE(staticffmpeg,
+	[  --enable-staticffmpeg     enable hacks to get full control of ffmpeg codec (dangerous)],
+	[ staticffmpeg=$enableval ])
 
 if test -n "$path" ; then
-   test -z "$mpath" && mpath=$path 
-   test -z "$opath" && opath=$path/oct 
+   test -z "$mpath" && mpath=$path
+   test -z "$opath" && opath=$path/oct
    test -z "$xpath" && xpath=$path/bin
    test -z "$altpath" && altpath=$path-alternatives
 fi
@@ -92,6 +99,7 @@ if test -n "$altpath" ; then
    test -z "$altmpath" && altmpath=$altpath 
    test -z "$altopath" && altopath=$altpath/oct 
 fi
+
 
 dnl Don't query if path/ver are given in the configure environment
 #if test -z "$mpath" || test -z "$opath" || test -z "$xpath" || test -z "$altmpath" || test -z "$altopath" || test -z "$ver" ; then
@@ -330,17 +338,20 @@ case "$canonical_host_type" in
     ;;
 esac
 
+dnl *******************************************************************
+
 dnl Check for ffmpeg
 AC_CHECK_PROG([FFMPEG_CONFIG], [pkg-config], [pkg-config])
 if test -z $FFMPEG_CONFIG ; then
   AC_MSG_WARN([`pkg-config' not found -- using default configuration])
-  FFMPEG_FLAGS="-lavcodec -lavutil -lavformat -lswscale -lm"
-dnl  echo $FFMPEG_FLAGS
+  FFMPEG_CFLAGS=
+  FFMPEG_LIBS="-lavcodec -lavutil -lavformat -lswscale -lm"
 else
-  FFMPEG_FLAGS=`pkg-config libavformat libavcodec libavutil libswscale --libs --cflags`
-dnl   echo $FFMPEG_FLAGS
+  FFMPEG_CFLAGS=`pkg-config libavformat libavcodec libavutil libswscale --cflags`
+  FFMPEG_LIBS=`pkg-config libavformat libavcodec libavutil libswscale --libs`
 fi
 
+FFMPEG_FLAGS="$FFMPEG_CFLAGS $FFMPEG_LIBS"
 AC_CHECK_LIB([avformat], [av_write_frame], [],
 			 [AC_MSG_ERROR([need libavformat from FFMpeg])],
 			 [$FFMPEG_FLAGS])
@@ -351,18 +362,15 @@ AC_CHECK_LIB([swscale], [sws_scale], [],
 			[AC_MSG_ERROR([need libswscale from FFMpeg])],
 			[$FFMPEG_FLAGS])
 
-OLD_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $FFMPEG_FLAGS"
 FFMPEG_DEFS=
-AC_SUBST(FFMPEG_DEFS)
 AC_CHECK_HEADERS(ffmpeg/avformat.h,
   FFMPEG_DEFS="$FFMPEG_DEFS -DHAVE_FFMPEG_AVFORMAT_H", [
-  AC_CHECK_HEADERS(libavformat/avformat.h, 
+  AC_CHECK_HEADERS(libavformat/avformat.h,
     FFMPEG_DEFS="$FFMPEG_DEFS -DHAVE_LIBAVFORMAT_AVFORMAT_H",
     AC_MSG_ERROR([FFMpeg header files not found]))])
-AC_CHECK_HEADERS(ffmpeg/avcodec.h, 
+AC_CHECK_HEADERS(ffmpeg/avcodec.h,
   FFMPEG_DEFS="$FFMPEG_DEFS -DHAVE_FFMPEG_AVCODEC_H", [
-  AC_CHECK_HEADERS(libavcodec/avcodec.h, 
+  AC_CHECK_HEADERS(libavcodec/avcodec.h,
     FFMPEG_DEFS="$FFMPEG_DEFS -DHAVE_LIBAVCODEC_AVCODEC_H",
     AC_MSG_ERROR([FFMpeg header files not found]))])
 AC_CHECK_DECL(AVSEEK_FLAG_BACKWARD, [],
@@ -372,7 +380,25 @@ AC_CHECK_DECL(AVSEEK_FLAG_BACKWARD, [],
 #elif defined(HAVE_LIBAVFORMAT_AVFORMAT_H)
 #include <libavformat/avformat.h>
 #endif])
-CPPFLAGS=$OLD_CPPFLAGS
+
+if test -n "$ffmpeghack" ; then
+   OLD_CPPFLAGS=$CPPFLAGS
+   FFMPEG_DEFS="$FFMPEG_DEFS -DFFMPEG_HACK"
+else
+   ffmpeghack=no
+fi
+
+if test -n "$staticffmpeg" ; then
+   FFMPEG_LIBS="-Wl,-Bstatic $FFMPEG_LIBS -Wl,-Bsymbolic"
+else
+   staticffmpeg=no
+fi
+
+AC_SUBST(FFMPEG_DEFS)
+AC_SUBST(FFMPEG_CFLAGS)
+AC_SUBST(FFMPEG_LIBS)
+
+dnl *******************************************************************
 
 dnl Check for opencv
 AC_CHECK_PROG([OPENCV_CONFIG], [pkg-config], [pkg-config])
@@ -391,12 +417,13 @@ AC_CHECK_LIB([opencv_highgui], [cvNamedWindow], [],
 			 [AC_MSG_ERROR([need libopencv_highgui from OpenCV])],
 			 [$OPENCV_CFLAGS])
 
-AC_SUBST(OPENCV_LIBS)
-AC_SUBST(OPENCV_CFLAGS)
 AC_SUBST(OPENCV_DEFS)
+AC_SUBST(OPENCV_CFLAGS)
+AC_SUBST(OPENCV_LIBS)
+
+dnl *******************************************************************
 
 AC_CONFIG_FILES([Makefile])
-AC_SUBST([FFMPEG_CONFIG])
 AC_OUTPUT
 
 
@@ -418,5 +445,9 @@ shell commands will install into the following directories:
 
 octave-forge is configured with
    octave:      $OCTAVE (version $OCTAVE_VERSION)
-   mkoctfile:	$MKOCTFILE for Octave $subver"
+   mkoctfile:	 $MKOCTFILE for Octave $subver
+
+extra flags
+   ffmpeghack:    $ffmpeghack
+   staticffmpeg:  $staticffmpeg"
 
