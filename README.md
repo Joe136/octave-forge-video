@@ -1,4 +1,5 @@
 octave-forge-video
 ==================
 
-Fork of the Octave-Forge video package to build with latest FFmpeg.
+Fork of the Octave-Forge video package with VideoReader support.
+
