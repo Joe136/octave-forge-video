@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 Joe136 <Joe136@users.noreply.github.com>
+/* Copyright (C) 2015 Joe136 <Joe136@users.noreply.github.com>
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions are
@@ -27,9 +27,10 @@
 #include <octave/oct.h>
 #include <octave/ov-class.h>
 #include <opencv2/opencv.hpp>
+#include "utils/Logging.h"
 
 #ifdef FFMPEG_HACK
-#include "ffmpeg_hack.h"
+#include "includes/ffmpeg_hack.h"
 #endif
 
 
@@ -39,8 +40,19 @@ class VideoReader : public octave_class {
 public:// Enums
    enum ConfigType {
       VR_None = 0,
+      VR_Verbose,
       VR_ZeroImage,
-      VR_SilentRead
+      VR_SilentRead,
+      VR_PreLoad
+   };//end Enum
+
+
+   enum PreLoadState {
+      PL_None = 0,
+      PL_Stopped,
+      PL_Deinitialize,
+      PL_Initialize,
+      PL_Sarted
    };//end Enum
 
 
@@ -77,9 +89,13 @@ public:// Constructors, Destructors
 //   std::string class_name (void) const { return "VideoReader"; }
 
 
-public:// overloaded Functions
+public:// overloaded Octave Functions
    virtual octave_value_list subsref    (const std::string &type, const std::list< octave_value_list > &idx, int nargout);
+   virtual void              print      (std::ostream &os, bool pr_as_read_syntax=false); //const;
+   virtual void              print_info (std::ostream &os, const std::string &prefix); //const;
+   virtual bool              print_name_tag (std::ostream &os, const std::string &name); //const;
    virtual void              print_raw  (std::ostream &os, bool pr_as_read_syntax=false); //const;
+   virtual void              print_with_name (std::ostream &os, const std::string &name, bool print_padding = true); //const;
    virtual size_t            byte_size  (void) const { return sizeof (VideoReader); }
    virtual Matrix            size       (void)       { return Matrix (1, 2, 1.0); }   // size = 1x1
 
@@ -98,20 +114,35 @@ public:// Functions
 
 
 protected:// Functions
-   virtual octave_value read  (int from = 0, int to = 0, bool native = false);
-   //virtual octave_value write (int from = 0, int to = 0, bool native = false);
+   virtual octave_value read      (int from = 0, int to = 0, bool native = false);
+   //virtual octave_value write     (int from = 0, int to = 0, bool native = false);
+
+   virtual octave_value fullCheck ();
+
+   bool initPreLoad (bool value);
+   void preload ();
+
+
+protected:// Static Functions
+   static void initPreLoad (void *args) {}
 
 
 protected:// Variables
+   utils::Logging   m_oConsole;
    bool             m_bIsValid = false;
    std::string      m_sFilename;
    VideoCapture_    m_oVC = VideoCapture_ ();
 
    octave_value     m_oUserData;
    std::string      m_sTag;
+   uint8NDArray     m_oPreloadImage;
 
    size_t           m_iFrameNum = 1;
    size_t           m_iGrabbedFrameNum = 0xefffffff;
+   size_t           m_iPreloadedFrameNum = 0xefffffff;
+
+   //std::semaphore   m_oSemaphoreInitPL;
+   PreLoadState     m_PreLoadState = PL_Stopped;
 
    // Configuration
    bool m_bZeroImage = true;
@@ -127,8 +158,10 @@ bool VideoReader::setConfig (const ConfigType type, T value) {
 
    switch (type) {
    case VR_None: break;
-   case VR_ZeroImage: m_bZeroImage = (bool)value; res = true; break;
+   case VR_Verbose:   m_oConsole.s_iVerbose = (int32_t)value; res = true; break;
+   case VR_ZeroImage: m_bZeroImage = (bool)value;   res = true; break;
    //case VR_SilentRead: m_oVC.set_silentRead ( (bool)value); res = true; break;
+   case VR_PreLoad:   res = initPreLoad ( (bool)value); break;
    };//end switch
 
    return res;

@@ -1,0 +1,26 @@
+
+#OCTFILES = $(wildcard src/*.cc)
+#AVOBJS   = $(wildcard src/*.cpp)
+#OCTFILES = $(OCTFILES:%.cc=%.o)
+#AVOBJS   = $(AVOBJS:%.cpp=%.lib.o)
+
+OCTFILES = \
+	oct/VideoReader.oct
+#	avi/avifile.oct \
+#	avi/aviread.oct \
+#	avi/aviinfo.oct \
+#	avi/addframe.oct \
+
+AVOBJS   = \
+	lib/VideoReader.lib.o \
+	lib/VideoReader.preload.lib.o \
+	lib/VideoReader.print.lib.o \
+	lib/VideoReader.read.lib.o \
+	lib/VideoReader.subsref.lib.o \
+	utils/Logging.lib.o \
+	utils/backtrace/libs/backtrace/src/backtrace.lib.o
+#	avi/AVHandler.lib.o \
+#	avi/oct-avifile.lib.o \
+
+TEST_CASES =   \
+	avitest

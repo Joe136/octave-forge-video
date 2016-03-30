@@ -1,5 +1,5 @@
 /* Copyright (c) 2005 Stefan van der Walt <stefan@sun.ac.za>
- * 
+ *
  * Based in part on the libavformat example, which is
  * Copyright (c) 2003 Fabrice Bellard
  *
@@ -9,17 +9,17 @@
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.  
+ * THE SOFTWARE.
  */
 
 #include "AVHandler.h"
@@ -80,45 +80,45 @@ AVHandler::~AVHandler(void) {
         avformat_close_input(&av_input);
     } else {
         // close output stream
-        if (vstream) av_freep(&vstream);    
+        if (vstream) av_freep(&vstream);
     }
-    
+
     if (video_outbuf) {
         av_free(video_outbuf);
     }
-   
+
 }
 
 int
 AVHandler::setup_write() {
     av_register_all();
 
-    AVOutputFormat *avifmt = NULL;   
+    AVOutputFormat *avifmt = NULL;
     while (NULL != (avifmt = av_oformat_next(avifmt))) {
         if (std::string(avifmt->name) == "avi") {
             break;
         }
     }
-    
+
     if (!avifmt) {
         (*out) << "AVHandler: Error finding AVI output format" << std::endl;
         return -1;
     }
-    
+
     av_output = avformat_alloc_context();
     if (!av_output) {
         (*out) << "AVHandler: Memory error allocating format context" << std::endl;
         return -1;
     }
-    
+
     // use AVI encoding
     av_output->oformat = avifmt;
     av_output->oformat->audio_codec = CODEC_ID_NONE;
-        
+
     if (avifmt->video_codec != CODEC_ID_NONE) {
         if (add_video_stream() != 0) return -1;
     }
-    
+
     snprintf(av_output->filename, sizeof(av_output->filename), "%s", filename.c_str());
 
     assert(vstream == av_output->streams[vstream->index]);
@@ -131,9 +131,9 @@ AVHandler::setup_write() {
 	(*out) << "AVHandler: Could not open \"" << filename << "\" for output" << std::endl;
 	return -1;
     }
-    
+
     if (init_video_codecs() != 0) return -1;
-   
+
     if (frame)    av_frame_free (&frame);
     if (rgbframe) av_frame_free (&rgbframe);
 
@@ -250,8 +250,8 @@ AVHandler::write_frame() {
     AVCodecContext *c = vstream->codec;
 
     if (frame && rgbframe) {
-      SwsContext *sc = sws_getContext(c->width, c->height, PIX_FMT_RGB24, 
-                                      c->width, c->height, c->pix_fmt, 
+      SwsContext *sc = sws_getContext(c->width, c->height, PIX_FMT_RGB24,
+                                      c->width, c->height, c->pix_fmt,
                                       SWS_BICUBIC, 0, 0, 0);
       sws_scale(sc, rgbframe->data, rgbframe->linesize, 0,
                 c->height, frame->data, frame->linesize);
@@ -537,7 +537,7 @@ AVHandler::add_video_stream() {
         (*out) << "AVHandler: error opening video output stream" << std::endl;
         return -1;
     }
-    
+
     cc = vstream->codec;
 
     cc->codec_type = AVMEDIA_TYPE_VIDEO;
@@ -564,9 +564,9 @@ int
 AVHandler::init_video_codecs() {
     AVCodec *codec;
     AVCodecContext *cc;
-    
+
     cc = vstream->codec;
-    
+
     //codec = avcodec_find_encoder(cc->codec_id);
     codec = avcodec_find_encoder_by_name(codec_name.c_str());
 
@@ -580,10 +580,10 @@ AVHandler::init_video_codecs() {
         cc->codec = NULL;
         return -1;
     }
-    
+
     // XXX FIXME XXX What is the best size for video_outbuf?
     video_outbuf = (uint8_t *)malloc(VIDEO_OUTBUF_SIZE);
-    
+
     return 0;
 }
 
@@ -597,7 +597,7 @@ AVHandler::create_frame(PixelFormat fmt) {
         (*out) << "AVHandler: cannot allocate frame" << std::endl;
         return NULL;
     }
-    
+
     int size = avpicture_get_size(fmt,
                                   vstream->codec->width,
                                   vstream->codec->height);
@@ -608,9 +608,9 @@ AVHandler::create_frame(PixelFormat fmt) {
         (*out) << "AVHandler: error initialising frame" << std::endl;
         return NULL;
     }
-    
+
     avpicture_fill((AVPicture *)frame, frame_buf, fmt,
                    vstream->codec->width, vstream->codec->height);
-    
+
     return frame;
 }

@@ -33,10 +33,10 @@
 
 std::string get_filedate(const std::string &fn) {
     time_t file_mod = file_stat(fn).mtime().unix_time();
-    
+
     char *timestr = new char[30];
     strftime(timestr, 30, "%d-%b-%Y %H:%M:%S", localtime(&file_mod));
-    
+
     return std::string(timestr);
 }
 
@@ -54,7 +54,7 @@ Return the properties of an AVI file.\n\
         print_usage();
         return retval;
     }
-   
+
     std::string filename = args(0).string_value();
     if (error_state) {
         print_usage();

@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 Joe136 <Joe136@users.noreply.github.com>
+/* Copyright (C) 2004 Stefan van der Walt <stefan@sun.ac.za>
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions are
@@ -22,39 +22,43 @@
   OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
   IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
+#ifndef _AVIFILE_H
+#define _AVIFILE_H
 
-//---------------------------Includes----------------------------------------------//
-#include <octave/oct.h>
-#include <octave/oct-map.h>
-#include "VideoReader.h"
-#include "logging.h"
+#include "AVHandler.h"
+#include <octave/oct-alloc.h>
 
+class Avifile: public octave_base_value {
 
+ public:
+  AVHandler *av;
 
-//---------------------------Start VideoReader-------------------------------------//
-DEFUN_DLD(VideoReader, args, nargout,
-"-*- texinfo -*-\n\
-@deftypefn {Loadable Function} {@var{obj} =} VideoReader (@var{filename} [, @var{N}])\n\
-@end deftypefn\n\
-\n\
-@seealso{avifile, aviinfo, addframe}")
-{
-   LOGGING ("VideoReader(...)\n");
+  Avifile(void) { *this = Avifile("default.avi"); }
 
-   octave_value_list retval;
+  Avifile(std::string fn);
 
-   //if (args.length() == 0 || args.length () > 2) {
-   if (args.length() < 1) {
-      print_usage();
-      return retval;
-   }
+  octave_base_value *clone(void) const { return new Avifile(*this); }
+  octave_base_value *empty_clone(void) const { return new Avifile(); }
 
-   VideoReader *video_ = new VideoReader (args(0).string_value () );
+  ~Avifile(void);
 
-   video_->setConfig (VideoReader::VR_SilentRead, true);
-   video_->setConfig (VideoReader::VR_ZeroImage,  false);
+  void print(std::ostream& os, bool pr_as_read_syntax) const;
+  
+  void addframe(const NDArray &f);
+  
+  bool is_defined(void) const { return true; }
+  
+  bool is_constant(void) const { return true; }
+  
+ private:  
+  Avifile(const Avifile& m);
 
-   retval (0) = octave_value (video_);
-   return retval;
-}//end Fct
+  std::string filename;
+  unsigned int frames;
+  unsigned int frame_rows;
+  unsigned int frame_columns;
 
+  DECLARE_OCTAVE_ALLOCATOR
+  DECLARE_OV_TYPEID_FUNCTIONS_AND_DATA
+};
+#endif

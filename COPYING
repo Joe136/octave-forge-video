@@ -1,6 +1,7 @@
-Octave-Avifile : An Octave interface for handling AVI videos
+Octave-Video : An Octave interface for handling AVI videos
 
 Copyright (C) 2004 Stefan van der Walt <stefan@sun.ac.za>
+Copyright (C) 2015 Joe136 <Joe136@users.noreply.github.com>
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are

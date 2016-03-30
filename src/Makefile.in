@@ -1,14 +1,11 @@
 sinclude Makeconf
+sinclude Makefile.files
 
-OCTFILES = avifile.oct aviread.oct aviinfo.oct addframe.oct VideoReader.oct
-AVOBJS   = AVHandler.lib.o oct-avifile.lib.o VideoReader.lib.o
-#OCTFILES = $(wildcard src/*.cc)
-#AVOBJS   = $(wildcard src/*.cpp)
-#OCTFILES = $(OCTFILES:%.cc=%.o)
-#AVOBJS   = $(AVOBJS:%.cpp=%.lib.o)
+-include $(OCTFILES:%.oct=%.d) $(AVOBJS:%.o=%.d)
 
 FFMPEG_FLAGS = $(FFMPEG_CFLAGS) $(FFMPEG_DEFS) $(FFMPEG_LIBS)
 OPENCV_FLAGS = $(OPENCV_CFLAGS) $(OPENCV_DEFS) $(OPENCV_LIBS)
+
 
 
 .PHONY: all strip
@@ -20,33 +17,47 @@ debug: all
 
 .PHONY: clean
 clean:
-	@rm -f *.o *.oct avctest *~ octave-core octave-workspace
+	@rm -f ${AVOBJS} ${OCTFILES} *.o *.oct avctest *~ octave-core octave-workspace
 
-oct-avifile.o: AVHandler.o
 
-${AVOBJS}: %.lib.o: %.cpp %.h
+## Default build parts
+
+${AVOBJS}: %.lib.o: %.cpp
 	@CXXFLAGS="$(CXXFLAGS) $(COMMON_CXX)" \
-	mkoctfile -v -c $(FFMPEG_FLAGS) $(OPENCV_FLAGS) $(CPPFLAGS) $< -o $@
+	mkoctfile -v -c -M -I. $(FFMPEG_FLAGS) $(OPENCV_FLAGS) $(CPPFLAGS) $< -o $@
+	@CXXFLAGS="$(CXXFLAGS) $(COMMON_CXX)" \
+	mkoctfile -v -c -I. $(FFMPEG_FLAGS) $(OPENCV_FLAGS) $(CPPFLAGS) $< -o $@
 
 ${OCTFILES}: %.oct: %.cc $(AVOBJS)
 	@CXXFLAGS="$(CXXFLAGS) $(COMMON_CXX)" \
-	mkoctfile -v $< $(filter %.o, $^) $(FFMPEG_FLAGS) $(OPENCV_LIBS) $(CPPFLAGS)
+	mkoctfile -v $(filter %.o, $^) -M -I. $(FFMPEG_FLAGS) $(OPENCV_LIBS) $(CPPFLAGS) $< -o $@
+	@CXXFLAGS="$(CXXFLAGS) $(COMMON_CXX)" \
+	mkoctfile -v $(filter %.o, $^) -I. $(FFMPEG_FLAGS) $(OPENCV_LIBS) $(CPPFLAGS) $< -o $@
 
-avctest.o: avctest.cc
-	g++ -Wall -c avctest.cc -o avctest.o
 
-avctest: AVHandler.o avctest.o
-	g++ $^ -Wall ${FFMPEG_OPTS} -o $@
+## Special build parts/files
+
+utils/backtrace/libs/backtrace/src/backtrace.lib.o: %.lib.o: %.cpp utils/backtrace/boost/backtrace.hpp
+	@CXXFLAGS="$(CXXFLAGS) $(COMMON_CXX)" \
+	mkoctfile -v -c -I. -Iutils/backtrace $(FFMPEG_FLAGS) $(OPENCV_FLAGS) $(CPPFLAGS) $< -o $@
+
+
+#oct-avifile.o: AVHandler.o
+
+#avctest.o: avctest.cc
+#	g++ -Wall -c avctest.cc -o avctest.o
+
+#avctest: avi/AVHandler.o avctest.o
+#	g++ $^ -Wall ${FFMPEG_OPTS} -o $@
+
 
 .PHONY: strip
 strip: all
 	strip $(shell find ./* -name "*.oct") avctest
 
-TEST_CASES =   \
-	avitest
 
 NOT_BROKEN_TEST_CASES = $(TEST_CASES:=.test)
 .PHONY: check
 check: $(NOT_BROKEN_TEST_CASES)
 %.test:
-	octave -q tests/$*.m > /dev/null
+	octave -H -q tests/$*.m > /dev/null

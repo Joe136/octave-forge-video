@@ -1,7 +1,7 @@
 #!/bin/bash
 echo "video >> Video"
 echo "Video"
-for n in src/*.oct; do
+for n in `find src -name '*.oct'`; do
    echo " $(basename -s .oct "$n")"
 done
 

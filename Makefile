@@ -1,38 +1,52 @@
 ## Generic Makefile to allow the octave-forge packages to be build and 
-## installed using "configure; make all; make install". This Makefile
+## installed using "./configure; make; make install". This Makefile
 ## includes the capability to install to a temporary location, and install
 ## an on_uninstall.m file that prevents the user removing this package
 ## with Octave's package manager. This is useful for for the distribution's
 ## various package managers and is forced by defining DESTDIR and DISTPKG.
 
-PKGVER := $(shell grep Version DESCRIPTION | grep -o [0-9.]*)
-PKGDIR := video-$(PKGVER)
-TMPDIR ?= /tmp
-PACKAGE ?= $(TMPDIR)/$(PKGDIR).tar.gz
-PKG := $(shell echo $(PKGDIR) | sed -e 's|^\(.*\)-.*|\1|')
+VERSION := $(shell cat VERSION)
+PKGDATE := $(shell date +%G-%m-%d)
+PKG := video
+TMPDIR ?= .
+PKGDIR := $(PKG)-$(VERSION)
+PACKAGE ?= $(TMPDIR)/$(PKG)-$(VERSION).tar.gz
 
 all: build
 
 debug: build-debug
 
 build:
-	@if [ -e src/Makefile ]; then $(MAKE) -C src all; fi
+	@$(MAKE) -C src all
 
 build-debug:
-	@if [ -e src/Makefile ]; then $(MAKE) -C src debug; fi
+	@$(MAKE) -C src debug
 
 package: build
-	@if [ -e "$(PACKAGE)" ]; then rm -f "$(PACKAGE)"; fi; \
-	if [ -e "$(PKGDIR)" ]; then rm -fr "$(PKGDIR)"; fi; \
-	mkdir -p "$(PKGDIR)"; \
-	mkdir -p "$(PKGDIR)/src"; \
-	cp ChangeLog COPYING DESCRIPTION README.md "$(PKGDIR)/"; \
-	bash INDEX > "$(PKGDIR)/INDEX"; \
-	cp -r doc "$(PKGDIR)/"; \
-	cp src/*.oct "$(PKGDIR)/src/"; \
-	tar -czf $(PACKAGE) $(PKGDIR); \
-	chmod o+w -R $(PKGDIR); \
-	chmod o+w $(PACKAGE); \
+	@echo "Package to $(PACKAGE)"
+# Remove/Backup old stuff
+	@if [ -e "$(PACKAGE)" ]; then mv -f  "$(PACKAGE)" "$(PACKAGE)~"; fi
+	@if [ -e "$(PKGDIR)~" ]; then rm -fr "$(PKGDIR)~"; fi
+	@if [ -e "$(PKGDIR)"  ]; then mv -f  "$(PKGDIR)" "$(PKGDIR)~"; fi
+# Create directory structure
+	@mkdir -p "$(PKGDIR)";
+	@mkdir -p "$(PKGDIR)/src";
+# Copy files/directories
+	@cp COPYING DESCRIPTION README.md "$(PKGDIR)/"
+	@cp -r doc "$(PKGDIR)/";
+	@find src -name '*.oct' -exec cp --parents {} video-1.0.2b/ \;
+# Create/Manipulate files
+	@git log --color=never > "$(PKGDIR)/ChangeLog"
+	@echo "" >> "$(PKGDIR)/ChangeLog"
+	@tail -n +2 ChangeLog >> "$(PKGDIR)/ChangeLog"
+	@sed -i -e 's/<version>/$(VERSION)/' -e 's/<date>/$(PKGDATE)/' $(PKGDIR)/DESCRIPTION
+	@bash INDEX > "$(PKGDIR)/INDEX"
+# Correct acl-permissions
+	@chmod 755 "$(PKGDIR)"
+	@find "$(PKGDIR)" -type d -exec chmod 755 {} \;
+	@find "$(PKGDIR)" -type f -exec chmod 644 {} \;
+# Package
+	@tar -czf $(PACKAGE) $(PKGDIR)
 
 install: package
 	@cd ../; \
@@ -79,6 +93,16 @@ install: package
 	fi;
 
 clean:
-	@if [ -e "$(PACKAGE)" ]; then rm -f "$(PACKAGE)"; fi; \
-	if [ -e "$(PKGDIR)" ]; then rm -fr "$(PKGDIR)"; fi; \
-	if [ -e src/Makefile ]; then $(MAKE) -C src clean; fi
+	@if [ -e "$(PACKAGE)"  ]; then rm -f  "$(PACKAGE)";  fi
+	@if [ -e "$(PACKAGE)~" ]; then rm -f  "$(PACKAGE)~"; fi
+	@if [ -e "$(PKGDIR)"   ]; then rm -fr "$(PKGDIR)";   fi
+	@if [ -e "$(PKGDIR)~"  ]; then rm -fr "$(PKGDIR)~";  fi
+	@$(MAKE) -C src clean
+
+print:
+	@echo "VERSION:  $(VERSION)"
+	@echo "PKGDATE: $(PKGDATE)"
+	@echo "PKG:     $(PKG)"
+	@echo "TMPDIR:  $(TMPDIR)"
+	@echo "PKGDIR:  $(PKGDIR)"
+	@echo "PACKAGE: $(PACKAGE)"

@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 Joe136 <Joe136@users.noreply.github.com>
+/* Copyright (C) 2015 Joe136 <Joe136@users.noreply.github.com>
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions are
@@ -28,43 +28,7 @@
 #include <octave/oct-map.h>
 #include "VideoReader.h"
 #include <opencv2/opencv.hpp>
-#include "logging.h"
-
-
-
-//---------------------------Start Constructor-------------------------------------//
-VideoReader::VideoReader (void) : octave_class (octave_map (), "VideoReader", std::list<std::string> () ) {
-   LOGGING ("VideoReader::VideoReader()\n");
-}//end Constructor
-
-
-
-VideoReader::VideoReader (std::string filename) : octave_class (octave_map (), "VideoReader", std::list<std::string> () ) {
-   LOGGING ("VideoReader::VideoReader(\"%s\")\n", filename.c_str () );
-
-   m_sFilename = filename;
-
-   m_oVC.open    (m_sFilename);
-   //m_oVC.set_log (&octave_stdout);
-   //m_oVC.set_err (&octave_stdout);
-
-   if (!m_oVC.isOpened() ) {
-      //error ("aviread: AVHandler setup failed");
-      warning ("VideoReader: OpenCV-VideoCapture setup failed");
-      this->assign ("isvalid", octave_value (false) );
-      return;
-   } else {
-      this->assign ("isvalid", octave_value (true) );
-      m_bIsValid = true;
-   }
-}//end Constructor
-
-
-
-//---------------------------Start Destructor--------------------------------------//
-VideoReader::~VideoReader () {
-   LOGGING ("VideoReader::~VideoReader()\n");
-}//end Destructor
+#include "includes/logging.h"
 
 
 
@@ -125,7 +89,7 @@ octave_value_list VideoReader::subsref (const std::string &type, const std::list
             int sec  = msec / 1000;
             int min  = sec / 60;
             int hour = min / 60;
-            snprintf (s, 20, "%02i:%02i:%02i:%03i", hour, min % 60, sec % 60, msec % 1000);
+            snprintf (s, 20, "%02i:%02i:%02i.%03i", hour, min % 60, sec % 60, msec % 1000);
             retval(0) = octave_value (std::string (s) );
          }
 #else
@@ -145,11 +109,15 @@ octave_value_list VideoReader::subsref (const std::string &type, const std::list
          warning ("VideoReader: 'bitsperpixel' not implemented yet");
 
       else if (!s.compare ("type") )
-         warning ("VideoReader: 'type' not implemented yet");
+         retval(0) = octave_value (std::string ("VideoReader") );
+         //warning ("VideoReader: 'type' not implemented yet");
 
       else if (!s.compare ("videoformat") )
-         retval(0) = octave_value (fourccToString (m_oVC.get (CV_CAP_PROP_FOURCC) ) );
+         retval(0) = octave_value (fourccToString (m_oVC.get (CV_CAP_PROP_FOURCC) ) );   //TODO this is not the same as matlab says, it's the image type: e.g. 'RGB24'
          //warning ("VideoReader: 'videoformat' not implemented yet");
+
+      else if (!s.compare ("fourcc") )
+         retval(0) = octave_value (fourccToString (m_oVC.get (CV_CAP_PROP_FOURCC) ) );
 
       else
          error ("VideoReader: unknown VideoReader property %s", s.c_str () );
@@ -236,187 +204,13 @@ octave_value_list VideoReader::subsref (const std::string &type, const std::list
          //retval(0) = octave_value (m_oVC.print_file_formats () );
          warning ("VideoReader: 'getfileformats' not implemented yet");
 
+      } else if (!s.compare ("fullcheck") ) {
+         retval(0) = fullCheck ();
+
       } else
          error ("VideoReader: unknown VideoReader method '%s'", s.c_str () );
    }
 
    return retval;
-}//end Fct
-
-
-
-//---------------------------Start set---------------------------------------------//
-bool VideoReader::set (std::string type, const octave_value &value) {
-   LOGGING ("VideoReader::set(%s, <value>)\n", type.c_str() );
-
-   bool res = false;
-   std::transform(type.begin(), type.end(), type.begin(), ::tolower);
-
-   if (!type.compare ("zeroimage") ) {
-      if (value.is_bool_type () )
-         res = setConfig (VideoReader::VR_ZeroImage,  value.bool_value () );
-
-   } else if (!type.compare ("silentread") ) {
-      if (value.is_bool_type () )
-         res = setConfig (VideoReader::VR_SilentRead, value.bool_value () );
-   }
-
-   return res;
-}//end Fct
-
-
-
-//---------------------------Start print_raw---------------------------------------//
-void VideoReader::print_raw (std::ostream &os, bool pr_as_read_syntax) { //const {
-   LOGGING ("VideoReader::print_raw(<ostream>, %s)\n", BOOL_TO_STR (pr_as_read_syntax) );
-
-   os << "Summary of Video Reader Object";
-
-   newline (os); newline (os);
-
-   int    w = (int)m_oVC.get (CV_CAP_PROP_FRAME_WIDTH);
-   int    h = (int)m_oVC.get (CV_CAP_PROP_FRAME_HEIGHT);
-   double f =      m_oVC.get (CV_CAP_PROP_FPS);
-
-   os << "\tName: " << m_sFilename; newline (os);
-   os << "\tResolution: " << w << "x" << h << "@" << f; newline (os);
-
-   newline (os);
-}//end Fct
-
-
-
-//---------------------------Start read--------------------------------------------//
-/**
- *    from = 1-based index of the starting frame
- */
-octave_value VideoReader::read (int from, int to, bool native) {
-   LOGGING ("VideoReader::read(%i, %i, %s)\n", from, to, BOOL_TO_STR(native) );
-
-   if (!m_bIsValid)
-      return octave_value ();
-
-   if (native)
-      warning ("VideoReader.read: 'native' not implemented yet");
-
-   if (from)
-      m_iFrameNum = from;
-   else
-      from = m_iFrameNum;
-
-   if (!to)
-      to = from;
-
-   if ( (to - 1) > m_oVC.get (CV_CAP_PROP_FRAME_COUNT) )
-      to = m_oVC.get (CV_CAP_PROP_FRAME_COUNT) + 1;
-
-   if (to < from)
-      from = to;
-
-//printf ("time %f\n", m_oVC.get (CV_CAP_PROP_POS_MSEC) );
-
-   if ( (from - 1) != (int)m_oVC.get (CV_CAP_PROP_POS_FRAMES) && from != m_iGrabbedFrameNum) {
-/*      // There is no reason to correct the position to keyframe, opencv does it too
-#ifdef FFMPEG_HACK
-      if (from <= 1) {
-         m_oVC.set (CV_CAP_PROP_POS_FRAMES, (double)(from - 1) );
-      } else {
-         m_oVC.set (CV_CAP_PROP_POS_FRAMES, (double)(from - 2) );
-         m_oVC.grab ();
-//printf ("prestep %f %f %i %li\n", m_oVC.get (CV_CAP_PROP_POS_FRAMES), m_oVC.get (CV_CAP_PROP_POS_MSEC), m_oVC.getFFmpegCap ()->picture->key_frame, m_oVC.getFFmpegCap ()->picture->pkt_pts);
-
-         // Jump back to last keyframe
-         cv::CvCapture_FFMPEG *cap = m_oVC.getFFmpegCap ();
-         if (cap && cap->picture) {
-            // If it's not a keyframe
-            if (!cap->picture->key_frame) {
-               int stepback = 2;
-
-               // Step back to keyframe
-               while (!cap->picture->key_frame && (from > stepback) ) {
-                  ++stepback;
-//printf ("stepback %i %i %f %i\n", from, stepback, (double)(from - stepback), cap->picture->pict_type);
-                  m_oVC.set (CV_CAP_PROP_POS_FRAMES, (double)(from - stepback) );
-                  m_oVC.grab ();
-//printf ("stepback %f %f %i %li\n", m_oVC.get (CV_CAP_PROP_POS_FRAMES), m_oVC.get (CV_CAP_PROP_POS_MSEC), cap->picture->key_frame, cap->picture->pkt_pts);
-               }
-//printf ("pos %f\n", m_oVC.get (CV_CAP_PROP_POS_FRAMES) );
-               // Step forward to target frame
-               while (m_oVC.get (CV_CAP_PROP_POS_FRAMES) < (double)(from - 1) ) {
-                  m_oVC.grab ();
-//printf ("stepforward %f %f %i %li\n", m_oVC.get (CV_CAP_PROP_POS_FRAMES), m_oVC.get (CV_CAP_PROP_POS_MSEC), cap->picture->key_frame, cap->picture->pkt_pts);
-               }//end while
-            }
-         }
-      }
-#else
-*/
-      m_oVC.set (CV_CAP_PROP_POS_FRAMES, (double)(from - 1) );
-//#endif
-   }
-
-//printf ("pos %f\n", m_oVC.get (CV_CAP_PROP_POS_FRAMES) );
-//printf ("time %f\n", m_oVC.get (CV_CAP_PROP_POS_MSEC) );
-
-   dim_vector    d;
-   cv::Mat       frame;
-   unsigned int  height = (int)m_oVC.get (CV_CAP_PROP_FRAME_HEIGHT);
-   unsigned int  width  = (int)m_oVC.get (CV_CAP_PROP_FRAME_WIDTH);
-   unsigned int  depth  = 3;
-
-   if (to > from) {
-      d = dim_vector (height, width, depth, to - from + 1);
-   } else {
-      d = dim_vector (height, width, depth);
-   }
-
-   uint8NDArray image = uint8NDArray (d);
-
-   if (m_bZeroImage)
-      image.fill (0);
-
-   octave_idx_type  posR  = 0;
-   octave_idx_type  posG  = 0;
-   octave_idx_type  posB  = 0;
-
-   for (int i = 0; from <= to; ++from, ++i) {
-
-      if (from == m_iGrabbedFrameNum) {
-         if (!m_oVC.retrieve (frame) ) {
-            error ("VideoReader: cannot read frame %d", from);
-            break;
-         }
-      } else {
-         if (!m_oVC.read (frame) ) {
-            error ("VideoReader: cannot read frame %d", from);
-            break;
-         }
-         m_iGrabbedFrameNum = from;
-      }
-
-      //pos   = ( ( ( (0) * (to-from) + i) * depth + <0|1|2>) * width + x) * height + y;
-      posR  = i * (height * width * depth);
-      posG  = posR + (height * width);
-      posB  = posG + (height * width);
-
-      for (unsigned int x = 0; x < width; ++x) {
-         //int row   = 3 * x;
-         //int pixel = row;
-
-         for (unsigned int y = 0; y < height; ++y) {
-            //pixel = y * frame->linesize[0] + 3 * x;
-
-            image(posR++) = (unsigned int)frame.at<cv::Vec3b> (y, x)[2];
-            image(posG++) = (unsigned int)frame.at<cv::Vec3b> (y, x)[1];
-            image(posB++) = (unsigned int)frame.at<cv::Vec3b> (y, x)[0];
-
-            //pixel += frame->linesize[0];
-         }//end for 3
-      }//end for 2
-   }//end for 1
-
-   m_iFrameNum = from;
-
-   return image;
 }//end Fct
 

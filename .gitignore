@@ -5,6 +5,8 @@ src/Makefile
 src/config.status
 octave-core
 octave-workspace
-src/*.o
-src/*.oct
-video-*/
+*.o
+*.oct
+*.d
+video-*
+*~

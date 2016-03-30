@@ -47,7 +47,7 @@ of class @code{double} and scaled to be in [0-1].\n\
         print_usage();
         return retval;
     }
-    
+
     NDArray f = args(1).array_value();
     if (error_state) {
         error("addframe: frame should be a matrix");
@@ -76,7 +76,7 @@ of class @code{double} and scaled to be in [0-1].\n\
 %!  addframe(m, zeros(10,15))
 %!  addframe(m, ones(10,15))
 %!  addframe(m, rand(10,15))
-%!  clear m 
+%!  clear m
 %!  assert(exist(fn,"file"))
 %!  r=aviinfo(fn);
 %!  assert(r.Filename,fn);

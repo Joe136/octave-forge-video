@@ -102,7 +102,7 @@ Avifile::addframe(const NDArray &f) {
         error("avifile: invalid matrix dimensions");
         return;
     }
-    
+
     for (unsigned int y = 0; y < frame_rows; y++) {
       for (unsigned int x = 0; x < frame_columns; x++) {
         if (bands == 3) {
@@ -117,7 +117,7 @@ Avifile::addframe(const NDArray &f) {
         }
       }
     }
-    
+
     if (av->write_frame() < 0) {
         error("avifile: error writing frame");
         return;

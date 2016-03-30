@@ -3288,7 +3288,7 @@ fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for OCTAVE_VERSION in Octave" >&5
 $as_echo_n "checking for OCTAVE_VERSION in Octave... " >&6; }
-OCTAVE_VERSION=`echo "disp(OCTAVE_VERSION)" | $OCTAVE -qf`
+OCTAVE_VERSION=`echo "disp(OCTAVE_VERSION)" | $OCTAVE -Hqf`
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $OCTAVE_VERSION" >&5
 $as_echo "$OCTAVE_VERSION" >&6; }
 
@@ -3296,7 +3296,7 @@ $as_echo "$OCTAVE_VERSION" >&6; }
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for octave_config_info('canonical_host_type') in Octave" >&5
 $as_echo_n "checking for octave_config_info('canonical_host_type') in Octave... " >&6; }
-canonical_host_type=`echo "disp(octave_config_info('canonical_host_type'))" | $OCTAVE -qf`
+canonical_host_type=`echo "disp(octave_config_info('canonical_host_type'))" | $OCTAVE -Hqf`
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $canonical_host_type" >&5
 $as_echo "$canonical_host_type" >&6; }
 
@@ -3304,7 +3304,7 @@ $as_echo "$canonical_host_type" >&6; }
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for octave_config_info('SHLEXT') in Octave" >&5
 $as_echo_n "checking for octave_config_info('SHLEXT') in Octave... " >&6; }
-SHLEXT=`echo "disp(octave_config_info('SHLEXT'))" | $OCTAVE -qf`
+SHLEXT=`echo "disp(octave_config_info('SHLEXT'))" | $OCTAVE -Hqf`
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $SHLEXT" >&5
 $as_echo "$SHLEXT" >&6; }
 

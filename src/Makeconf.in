@@ -54,8 +54,8 @@ FFMPEG_CFLAGS = @FFMPEG_CFLAGS@
 FFMPEG_LIBS = @FFMPEG_LIBS@
 OPENCV_CFLAGS = @OPENCV_CFLAGS@
 OPENCV_DEFS = @OPENCV_DEFS@
-OPENCV_LIBS = -lopencv_core -lopencv_highgui -lm #@OPENCV_LIBS@
-DEBUGFLAGS = -DDEBUG -O0 -ggdb -rdynamic
+OPENCV_LIBS = -lopencv_core -lopencv_highgui -lopencv_videoio -lm #@OPENCV_LIBS@
+DEBUGFLAGS = -DDEBUG -O0 -g -ggdb -rdynamic
 
 OCTAVE = @OCTAVE@
 OCTAVE_VERSION = @OCTAVE_VERSION@
