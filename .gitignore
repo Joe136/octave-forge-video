@@ -8,5 +8,5 @@ octave-workspace
 *.o
 *.oct
 *.d
-video-*
+/video-*
 *~
