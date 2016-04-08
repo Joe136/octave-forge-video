@@ -1,14 +1,13 @@
 Name: octave-video
 Version: <version>
 Date: <date>
-Author: Stefan van der Walt <stefan@sun.ac.za> and Roman Stanchak
- and Joe136 <Joe136@users.noreply.github.com>
+Author: Stefan van der Walt <stefan@sun.ac.za> and Roman Stanchak and Joe136 <Joe136@users.noreply.github.com>
 Maintainer: Octave-Forge community <octave-dev@lists.sourceforge.net>
 Title: Video functions for Octave
-Description: A wrapper for ffmpeg's libavformat and libavcodec, implementing
- addframe, avifile, aviinfo, aviread and VideoReader.
+Description: A wrapper for ffmpeg's libavformat and libavcodec, implementing addframe, avifile, aviinfo, aviread and VideoReader.
 Depends: octave (>= 2.9.12)
 BuildRequires: libavformat-dev [Debian] libswscale-dev [Debian] libopencv-highgui-dev (>=2.4.8)
+Autoload: no
 License: FreeBSD
 Url: http://octave.sf.net
 Url: http://mentat.za.net

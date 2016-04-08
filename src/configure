@@ -4124,6 +4124,7 @@ ac_fn_c_check_decl "$LINENO" "AVSEEK_FLAG_BACKWARD" "ac_cv_have_decl_AVSEEK_FLAG
 #elif defined(HAVE_LIBAVFORMAT_AVFORMAT_H)
 #include <libavformat/avformat.h>
 #endif
+
 "
 if test "x$ac_cv_have_decl_AVSEEK_FLAG_BACKWARD" = xyes; then :
 
@@ -4133,7 +4134,7 @@ fi
 
 
 if test -n "$ffmpeghack" ; then
-   OLD_CPPFLAGS=$CPPFLAGS
+   OLD_CPPFLAGS="$CPPFLAGS"
    FFMPEG_DEFS="$FFMPEG_DEFS -DFFMPEG_HACK"
 else
    ffmpeghack=no
@@ -4187,7 +4188,7 @@ $as_echo "no" >&6; }
 fi
 
 
-if test -z $OPENCV_CONFIG ; then
+if test -z "$OPENCV_CONFIG" ; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \`pkg-config' not found -- using default configuration" >&5
 $as_echo "$as_me: WARNING: \`pkg-config' not found -- using default configuration" >&2;}
   OPENCV_LIBS="-lopencv_core -lopencv_highgui -lm"

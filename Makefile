@@ -7,10 +7,12 @@
 
 VERSION := $(shell cat VERSION)
 PKGDATE := $(shell date +%G-%m-%d)
-PKG := video
+PKG := octave-video
 TMPDIR ?= .
-PKGDIR := $(PKG)-$(VERSION)
+#PKGDIR := $(PKG)-$(VERSION)
+PKGDIR := $(PKG)
 PACKAGE ?= $(TMPDIR)/$(PKG)-$(VERSION).tar.gz
+#PACKAGE ?= $(TMPDIR)/$(PKG).tar.gz
 
 all: build
 
@@ -29,18 +31,20 @@ package: build
 	@if [ -e "$(PKGDIR)~" ]; then rm -fr "$(PKGDIR)~"; fi
 	@if [ -e "$(PKGDIR)"  ]; then mv -f  "$(PKGDIR)" "$(PKGDIR)~"; fi
 # Create directory structure
-	@mkdir -p "$(PKGDIR)";
+	@mkdir -p "$(PKGDIR)/inst";
 	@mkdir -p "$(PKGDIR)/src";
 # Copy files/directories
 	@cp COPYING DESCRIPTION README.md "$(PKGDIR)/"
 	@cp -r doc "$(PKGDIR)/";
-	@find src -name '*.oct' -exec cp --parents {} video-1.0.2b/ \;
+	#@find src -name '*.oct' -exec cp --parents {} "$(PKGDIR)/" \;
+	@find src -name '*.oct' -exec cp {} "$(PKGDIR)/inst/" \;
 # Create/Manipulate files
 	@git log --color=never > "$(PKGDIR)/ChangeLog"
 	@echo "" >> "$(PKGDIR)/ChangeLog"
 	@tail -n +2 ChangeLog >> "$(PKGDIR)/ChangeLog"
 	@sed -i -e 's/<version>/$(VERSION)/' -e 's/<date>/$(PKGDATE)/' $(PKGDIR)/DESCRIPTION
 	@bash INDEX > "$(PKGDIR)/INDEX"
+	@echo "all:" > "$(PKGDIR)/src/Makefile"
 # Correct acl-permissions
 	@chmod 755 "$(PKGDIR)"
 	@find "$(PKGDIR)" -type d -exec chmod 755 {} \;

@@ -24,22 +24,22 @@ clean:
 
 ${AVOBJS}: %.lib.o: %.cpp
 	@CXXFLAGS="$(CXXFLAGS) $(COMMON_CXX)" \
-	mkoctfile -v -c -M -I. $(FFMPEG_FLAGS) $(OPENCV_FLAGS) $(CPPFLAGS) $< -o $@
+	mkoctfile -v -c -M -I. $(FFMPEG_FLAGS) $(OPENCV_FLAGS) $(CPPFLAGS) $(LDFLAGS) $< -o $@
 	@CXXFLAGS="$(CXXFLAGS) $(COMMON_CXX)" \
-	mkoctfile -v -c -I. $(FFMPEG_FLAGS) $(OPENCV_FLAGS) $(CPPFLAGS) $< -o $@
+	mkoctfile -v -c -I. $(FFMPEG_FLAGS) $(OPENCV_FLAGS) $(CPPFLAGS) $(LDFLAGS) $< -o $@
 
 ${OCTFILES}: %.oct: %.cc $(AVOBJS)
 	@CXXFLAGS="$(CXXFLAGS) $(COMMON_CXX)" \
-	mkoctfile -v $(filter %.o, $^) -M -I. $(FFMPEG_FLAGS) $(OPENCV_LIBS) $(CPPFLAGS) $< -o $@
+	mkoctfile -v $(filter %.o, $^) -M -I. $(FFMPEG_FLAGS) $(OPENCV_LIBS) $(CPPFLAGS) $(LDFLAGS) $< -o $@
 	@CXXFLAGS="$(CXXFLAGS) $(COMMON_CXX)" \
-	mkoctfile -v $(filter %.o, $^) -I. $(FFMPEG_FLAGS) $(OPENCV_LIBS) $(CPPFLAGS) $< -o $@
+	mkoctfile -v $(filter %.o, $^) -I. $(FFMPEG_FLAGS) $(OPENCV_LIBS) $(CPPFLAGS) $(LDFLAGS) $< -o $@
 
 
 ## Special build parts/files
 
 utils/backtrace/libs/backtrace/src/backtrace.lib.o: %.lib.o: %.cpp utils/backtrace/boost/backtrace.hpp
 	@CXXFLAGS="$(CXXFLAGS) $(COMMON_CXX)" \
-	mkoctfile -v -c -I. -Iutils/backtrace $(FFMPEG_FLAGS) $(OPENCV_FLAGS) $(CPPFLAGS) $< -o $@
+	mkoctfile -v -c -I. -Iutils/backtrace $(FFMPEG_FLAGS) $(OPENCV_FLAGS) $(CPPFLAGS) $(LDFLAGS) $< -o $@
 
 
 #oct-avifile.o: AVHandler.o

@@ -379,10 +379,11 @@ AC_CHECK_DECL(AVSEEK_FLAG_BACKWARD, [],
 #include <ffmpeg/avformat.h>
 #elif defined(HAVE_LIBAVFORMAT_AVFORMAT_H)
 #include <libavformat/avformat.h>
-#endif])
+#endif
+])
 
 if test -n "$ffmpeghack" ; then
-   OLD_CPPFLAGS=$CPPFLAGS
+   OLD_CPPFLAGS="$CPPFLAGS"
    FFMPEG_DEFS="$FFMPEG_DEFS -DFFMPEG_HACK"
 else
    ffmpeghack=no
@@ -402,7 +403,7 @@ dnl *******************************************************************
 
 dnl Check for opencv
 AC_CHECK_PROG([OPENCV_CONFIG], [pkg-config], [pkg-config])
-if test -z $OPENCV_CONFIG ; then
+if test -z "$OPENCV_CONFIG" ; then
   AC_MSG_WARN([`pkg-config' not found -- using default configuration])
   OPENCV_LIBS="-lopencv_core -lopencv_highgui -lm"
   OPENCV_CFLAGS=""

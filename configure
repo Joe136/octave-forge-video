@@ -2,6 +2,6 @@
 
 if [ -e src/configure ]; then
   cd src
-  ./configure "$*"
+  ./configure "$@"
 fi
 
