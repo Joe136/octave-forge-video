@@ -99,6 +99,9 @@ octave_value_list VideoReader::subsref (const std::string &type, const std::list
       } else if (!s.compare ("path") )
          retval(0) = octave_value (m_sFilename);
 
+      else if (!s.compare ("iscamera") )
+         retval(0) = octave_value (m_bIsCamera);
+
       else if (!s.compare ("isvalid") )
          retval(0) = octave_value (m_bIsValid);
 

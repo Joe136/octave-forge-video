@@ -83,6 +83,7 @@ public:// Enums
 public:// Constructors, Destructors
    VideoReader (void);
    VideoReader (std::string filename);
+   VideoReader (int device);
 
    ~VideoReader (void);
 
@@ -131,6 +132,7 @@ protected:// Variables
    utils::Logging   m_oConsole;
    bool             m_bIsValid = false;
    std::string      m_sFilename;
+   bool             m_bIsCamera = false;
    VideoCapture_    m_oVC = VideoCapture_ ();
 
    octave_value     m_oUserData;

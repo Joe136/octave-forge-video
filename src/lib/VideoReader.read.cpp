@@ -54,7 +54,7 @@ octave_value VideoReader::read (int from, int to, bool native) {
    if (!to)
       to = from;
 
-   if ( (to - 1) > m_oVC.get (CV_CAP_PROP_FRAME_COUNT) )
+   if (!m_bIsCamera && (to - 1) > m_oVC.get (CV_CAP_PROP_FRAME_COUNT) )
       to = m_oVC.get (CV_CAP_PROP_FRAME_COUNT) + 1;
 
    if (to < from)
@@ -62,7 +62,7 @@ octave_value VideoReader::read (int from, int to, bool native) {
 
 //printf ("time %f\n", m_oVC.get (CV_CAP_PROP_POS_MSEC) );
 
-   if ( (from - 1) != (int)m_oVC.get (CV_CAP_PROP_POS_FRAMES) && from != m_iGrabbedFrameNum) {
+   if (!m_bIsCamera && (from - 1) != (int)m_oVC.get (CV_CAP_PROP_POS_FRAMES) && from != m_iGrabbedFrameNum) {
 /*      // There is no reason to correct the position to keyframe, opencv does it too
 #ifdef FFMPEG_HACK
       if (from <= 1) {
@@ -129,7 +129,14 @@ octave_value VideoReader::read (int from, int to, bool native) {
    for (int i = 0; from <= to; ++from, ++i) {
 
       //---------------------Read frame--------------------------------------------//
-      if (from == m_iGrabbedFrameNum) {
+      if (m_bIsCamera) {
+         m_oConsole[45] << "VideoReader::OpenCV::read()" << utils::Logging::endl;
+         m_iGrabbedFrameNum = from;
+         if (!m_oVC.read (frame) ) {
+            error ("VideoReader: cannot read frame %d", from);
+            break;
+         }
+      } else if (from == m_iGrabbedFrameNum) {
          m_oConsole[45] << "VideoReader::OpenCV::retrieve()" << utils::Logging::endl;
          if (!m_oVC.retrieve (frame) ) {
             error ("VideoReader: cannot read frame %d", from);

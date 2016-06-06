@@ -35,6 +35,7 @@
 DEFUN_DLD(VideoReader, args, nargout,
 "-*- texinfo -*-\n\
 @deftypefn {Loadable Function} {@var{obj} =} VideoReader (@var{filename} [, @var{N}])\n\
+   Read video files.\n\
 @end deftypefn\n\
 \n\
 @seealso{avifile, aviinfo, addframe}")
@@ -49,7 +50,18 @@ DEFUN_DLD(VideoReader, args, nargout,
       return retval;
    }
 
-   VideoReader *video_ = new VideoReader (args(0).string_value () );
+   VideoReader *video_ = nullptr;
+
+   // Create VideoReader (dependent on input type (string <--> number) )
+   if (args(0).is_string () )
+      video_ = new VideoReader (args(0).string_value () );
+   else if (args(0).is_scalar_type () ) {
+      if (args(0).is_integer_type () )
+         video_ = new VideoReader (args(0).int_value () );
+      else if (args(0).is_double_type () )
+         video_ = new VideoReader (args(0).double_value () );
+   } else
+      video_ = new VideoReader ();   // This will create a non-valid VideoReader
 
    video_->setConfig (VideoReader::VR_SilentRead, true);
    video_->setConfig (VideoReader::VR_ZeroImage,  false);

@@ -36,6 +36,9 @@
 //---------------------------Start Constructor-------------------------------------//
 VideoReader::VideoReader (void) : octave_class (octave_map (), "VideoReader", std::list<std::string> () ) {
    LOGGING ("VideoReader::VideoReader()\n");
+
+   this->assign ("iscamera", octave_value (false) );
+   this->assign ("isvalid",  octave_value (false) );
 }//end Constructor
 
 
@@ -50,6 +53,7 @@ VideoReader::VideoReader (std::string filename) : octave_class (octave_map (), "
    //m_oVC.set_err (&octave_stdout);
 
    m_oConsole.s_iVerbose = 10;
+   this->assign ("iscamera", octave_value (false) );
 
    if (!m_oVC.isOpened() ) {
       //error ("aviread: AVHandler setup failed");
@@ -59,6 +63,35 @@ VideoReader::VideoReader (std::string filename) : octave_class (octave_map (), "
    } else {
       this->assign ("isvalid", octave_value (true) );
       m_bIsValid = true;
+   }
+}//end Constructor
+
+
+
+VideoReader::VideoReader (int device) : octave_class (octave_map (), "VideoReader", std::list<std::string> () ) {
+   LOGGING ("VideoReader::VideoReader(%i)\n", device);
+
+   char filename[20];
+   snprintf (filename, 20, "<:device:>%i", device);
+   m_sFilename = filename;
+
+   m_oVC.open    (device);
+   //m_oVC.set_log (&octave_stdout);
+   //m_oVC.set_err (&octave_stdout);
+
+   m_oConsole.s_iVerbose = 10;
+
+   if (!m_oVC.isOpened() ) {
+      //error ("aviread: AVHandler setup failed");
+      warning ("VideoReader: OpenCV-VideoCapture setup failed");
+      this->assign ("isvalid",  octave_value (false) );
+      this->assign ("iscamera", octave_value (false) );
+      return;
+   } else {
+      this->assign ("isvalid",  octave_value (true) );
+      this->assign ("iscamera", octave_value (true) );
+      m_bIsValid  = true;
+      m_bIsCamera = true;
    }
 }//end Constructor
 
